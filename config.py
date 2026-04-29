@@ -22,7 +22,8 @@ class Paths:
     """All filesystem paths used across the project."""
     # Raw downloaded datasets — never modified
     data_raw:           Path = ROOT / "data" / "raw"
-    wico:               Path = ROOT / "data" / "raw" / "wico"
+    wico_text:          Path = ROOT / "data" / "raw" / "wico-text"
+    wico_graph:         Path = ROOT / "data" / "raw" / "wico-graph"
     twitter15:          Path = ROOT / "data" / "raw" / "twitter15"
     twitter16:          Path = ROOT / "data" / "raw" / "twitter16"
 
