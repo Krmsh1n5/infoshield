@@ -1,0 +1,55 @@
+# ── Core scientific stack ────────────────────────────────────────────────────
+numpy==1.26.4
+scipy>=1.11
+pandas>=2.0
+scikit-learn>=1.3
+
+# ── Graph neural networks ────────────────────────────────────────────────────
+torch>=2.1                        # CPU version is fine for prototyping
+torch-geometric>=2.4              # PyG — install AFTER torch (see note below)
+networkx>=3.2                     # Classical graph algorithms + visualization
+
+# ── NLP / text encoding for BiGCN ────────────────────────────────────────────
+transformers>=4.35                # HuggingFace: RoBERTa text encoder
+tokenizers>=0.15
+
+# ── LP optimizer ────────────────────────────────────
+# scipy.optimize.linprog is already included with scipy above
+
+# ── Data handling ─────────────────────────────────────────────────────────────
+datasets>=2.14                    # HuggingFace datasets (for WICO via Hub)
+tqdm>=4.66
+requests>=2.31
+
+# ── Visualization ─────────────────────────────────────────────────────────────
+matplotlib>=3.8
+seaborn>=0.13
+plotly>=5.17                      # Interactive cascade/tree visualizations
+
+# ── Notebook environment ──────────────────────────────────────────────────────
+jupyter>=1.0
+ipywidgets>=8.1                   # Interactive widgets inside notebooks
+
+# ── API layer (Phase 5) ───────────────────────────────────────────────────────
+flask>=3.0
+flask-cors>=4.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0                # Loads .env for API keys
+pydantic>=2.4                     # Config validation
+
+# ────────────────────────────────────────────────────────────────────────────
+# INSTALLATION ORDER — follow this exactly or PyG will fail
+# ────────────────────────────────────────────────────────────────────────────
+# Step 1: Install PyTorch FIRST (CPU-only is fine for this project):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+# Step 2: Install PyG wheels matching your torch version:
+#   pip install torch-geometric
+#   pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.0+cpu.html
+#
+# Step 3: Install the rest:
+#   pip install -r requirements.txt
+#
+# For GPU (faster BiGCN training), replace +cpu with +cu118 or +cu121
+# ────────────────────────────────────────────────────────────────────────────
