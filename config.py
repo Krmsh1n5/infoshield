@@ -26,6 +26,9 @@ class Paths:
     wico_graph:         Path = ROOT / "data" / "raw" / "wico-graph"
     twitter15:          Path = ROOT / "data" / "raw" / "twitter15"
     twitter16:          Path = ROOT / "data" / "raw" / "twitter16"
+    # Convenience sub-path shortcuts for tree files
+    twitter15_trees:    Path = ROOT / "data" / "raw" / "twitter15" / "tree"
+    twitter16_trees:    Path = ROOT / "data" / "raw" / "twitter16" / "tree"
 
     # Processed — PyG Data objects, fitted SBM matrices, etc.
     data_processed:     Path = ROOT / "data" / "processed"
@@ -64,12 +67,38 @@ class WICOConfig:
     HuggingFace Hub (easiest for text variant):
       from datasets import load_dataset
       ds = load_dataset("Schroeder2021/wico-text")
+
+    WICO Text structure:
+        wico-text/
+            5g_corona_conspiracy.txt     ← one tweet ID (int) per line, label=0
+            other_conspiracy.txt         ← one tweet ID (int) per line, label=1
+            non_conspiracy.txt           ← one tweet ID (int) per line, label=2
+
+        Example line:  1123359858106032130
+
+    WICO Graph structure:
+        wico-graph/
+            5G_Conspiracy_Graphs/
+                <tweet_id>/
+                    edges.txt   ← one edge per line: "source_id target_id"  (space-separated ints)
+                    nodes.csv   ← CSV with header: id,time,friends,followers
+                    plot.png    ← visualisation (not used in training)
+            Other_Graphs/
+                <tweet_id>/  ...
+            Non_Conspiracy_Graphs/
+                <tweet_id>/  ...
+
+        Example edges.txt line:  59596605 155604404
+        Example nodes.csv rows:
+            id,time,friends,followers
+            59596605,106295,10,8
+            155604404,34633,10,5
     """
     # Label mapping used by the paper and this project
     label_map: dict = field(default_factory=lambda: {
-        "5g-corona":    0,   # False content  → feeds G- model
-        "conspiracy":   1,   # False content  → feeds G- model
-        "non-conspiracy": 2, # True content   → feeds G+ model
+        "5g-corona":      0,   # False content  → feeds G- model
+        "conspiracy":     1,   # False content  → feeds G- model
+        "non-conspiracy": 2,   # True content   → feeds G+ model
     })
     # Re-mapped binary labels (used for SBM fitting)
     binary_label_map: dict = field(default_factory=lambda: {
@@ -77,10 +106,34 @@ class WICOConfig:
         1: "false",  # other conspiracy
         2: "true",   # non-conspiracy
     })
-    # Graph format: adjacency list .csv with columns: source_id, target_id, tweet_id
-    graph_file:     str = "wico_graph_edges.csv"
-    label_file:     str = "wico_graph_labels.csv"
-    text_file:      str = "wico_text.csv"
+
+    # ── WICO Text: one .txt file per class ───────────────────────────────────
+    # Each file contains one tweet ID (bare integer) per line — no header.
+    text_files: dict = field(default_factory=lambda: {
+        0: "5g_corona_conspiracy.txt",
+        1: "other_conspiracy.txt",
+        2: "non_conspiracy.txt",
+    })
+
+    # ── WICO Graph: one sub-directory per class ───────────────────────────────
+    # Each sub-directory holds per-tweet folders named by their tweet ID.
+    graph_dirs: dict = field(default_factory=lambda: {
+        0: "5G_Conspiracy_Graphs",
+        1: "Other_Graphs",
+        2: "Non_Conspiracy_Graphs",
+    })
+
+    # edges.txt — two space-separated integer node IDs per line, no header
+    #   format:  <source_id> <target_id>
+    graph_edges_file: str = "edges.txt"
+
+    # nodes.csv — CSV with header row, four columns:
+    #   id        : int  — node / user ID
+    #   time      : int  — account age proxy (minutes or days, dataset-native)
+    #   friends   : int  — number of accounts this user follows
+    #   followers : int  — number of accounts following this user
+    graph_nodes_file:    str  = "nodes.csv"
+    graph_nodes_columns: tuple = ("id", "time", "friends", "followers")
 
 
 @dataclass
@@ -89,9 +142,37 @@ class Twitter15Config:
     Twitter15 dataset settings.
     Source: https://github.com/TianBian95/BiGCN (includes the data/)
 
-    Structure per event:
-        <tweet_id>.txt  →  each line: "parent_id  user_id  timestamp  text"
-        label.txt       →  "<tweet_id>  <label>"   (4-class)
+    Directory structure:
+        twitter15/
+            tree/
+                <tweet_id>.txt      ← propagation tree, one edge per line
+            label.txt               ← "label:source_tweet_id" per line (4-class)
+            source_tweets.txt       ← "source_tweet_id \\t tweet_text" per line
+
+    ── tree/<tweet_id>.txt ──────────────────────────────────────────────────
+    Each line encodes a directed edge as two Python-list-style tuples:
+        ['parent_uid', 'parent_tweet_id', 'delay_min'] -> ['child_uid', 'child_tweet_id', 'delay_min']
+
+    Special root sentinel — the source tweet has no real parent:
+        ['ROOT', 'ROOT', '0.0'] -> ['uid', 'source_tweet_id', '0.0']
+
+    All delay values are floats (minutes since source tweet).
+
+    Example (twitter15/tree/1.txt):
+        ['ROOT', 'ROOT', '0.0']->['972651', '80080680482123777', '0.0']
+        ['972651', '80080680482123777', '0.0']->['189397006', '80080680482123777', '1.8']
+        ['972651', '80080680482123777', '0.0']->['10678072', '80080680482123777', '1.8']
+
+    ── label.txt ────────────────────────────────────────────────────────────
+    One entry per source tweet, colon-separated, no header:
+        unverified:731166399389962242
+
+    ── source_tweets.txt ────────────────────────────────────────────────────
+    One entry per source tweet, tab-separated (tweet_id \\t text), no header:
+        731166399389962242\\t🔥ca kkk grand wizard 🔥 endorses @hillaryclinton #neverhillary URL
+
+    Note: only source tweet text is distributed (Twitter ToS); all other tweet
+    content must be hydrated via the Twitter API using the supplied tweet IDs.
 
     Labels: true / false / unverified / non-rumor
     """
@@ -105,10 +186,60 @@ class Twitter15Config:
         0: "true",
         1: "false",
         2: "uncertain",
-        3: "true",
+        3: "true",   # non-rumor treated as verified true
     })
-    min_tree_size:  int = 3    # Skip trees with fewer than 3 nodes (too sparse)
-    max_tree_size:  int = 2000 # Skip abnormally large trees
+
+    # Sub-directory and file names inside the dataset root
+    tree_dir:           str = "tree"              # folder of per-tweet .txt files
+    label_file:         str = "label.txt"         # "label:tweet_id" per line
+    source_tweets_file: str = "source_tweets.txt" # "tweet_id \t text" per line
+
+    # Sentinel string used in tree files to mark the root node
+    root_sentinel: str = "ROOT"
+
+    min_tree_size:  int = 3    # skip trees with fewer than 3 nodes (too sparse)
+    max_tree_size:  int = 2000 # skip abnormally large trees
+
+
+@dataclass
+class Twitter16Config:
+    """
+    Twitter16 dataset settings.
+    Identical structure to Twitter15 — see Twitter15Config for full format details.
+    Source: https://github.com/TianBian95/BiGCN (includes the data/)
+
+    Directory structure:
+        twitter16/
+            tree/
+                <tweet_id>.txt      ← same edge format as Twitter15
+            label.txt               ← "label:source_tweet_id" per line
+            source_tweets.txt       ← "source_tweet_id \\t tweet_text" per line
+
+    Labels: true / false / unverified / non-rumor
+    """
+    label_map: dict = field(default_factory=lambda: {
+        "true":       0,
+        "false":      1,
+        "unverified": 2,
+        "non-rumor":  3,
+    })
+    binary_label_map: dict = field(default_factory=lambda: {
+        0: "true",
+        1: "false",
+        2: "uncertain",
+        3: "true",   # non-rumor treated as verified true
+    })
+
+    # Sub-directory and file names inside the dataset root
+    tree_dir:           str = "tree"
+    label_file:         str = "label.txt"
+    source_tweets_file: str = "source_tweets.txt"
+
+    # Sentinel string used in tree files to mark the root node
+    root_sentinel: str = "ROOT"
+
+    min_tree_size:  int = 3
+    max_tree_size:  int = 2000
 
 
 @dataclass
@@ -185,11 +316,12 @@ class LPOptimizerConfig:
 @dataclass
 class Config:
     """Master config — import this single object everywhere."""
-    paths:      Paths           = field(default_factory=Paths)
-    wico:       WICOConfig      = field(default_factory=WICOConfig)
-    twitter15:  Twitter15Config = field(default_factory=Twitter15Config)
-    bigcn:      BiGCNConfig     = field(default_factory=BiGCNConfig)
-    sbm:        SBMConfig       = field(default_factory=SBMConfig)
+    paths:      Paths             = field(default_factory=Paths)
+    wico:       WICOConfig        = field(default_factory=WICOConfig)
+    twitter15:  Twitter15Config   = field(default_factory=Twitter15Config)
+    twitter16:  Twitter16Config   = field(default_factory=Twitter16Config)
+    bigcn:      BiGCNConfig       = field(default_factory=BiGCNConfig)
+    sbm:        SBMConfig         = field(default_factory=SBMConfig)
     lp:         LPOptimizerConfig = field(default_factory=LPOptimizerConfig)
 
     # Global seed for reproducibility
@@ -211,7 +343,7 @@ if __name__ == "__main__":
     print("InfoGuard Configuration")
     print("=" * 40)
     print(f"Project root : {ROOT}")
-    print(f"WICO path    : {cfg.paths.wico}")
+    print(f"WICO path    : {cfg.paths.wico_text} (text), {cfg.paths.wico_graph} (graph)")
     print(f"BiGCN model  : {cfg.bigcn.text_encoder}")
     print(f"LP alpha     : {cfg.lp.alpha}")
     print(f"LP lambda    : {cfg.lp.lambda_weight}")
