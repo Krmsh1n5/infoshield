@@ -94,15 +94,17 @@ class WICOConfig:
             59596605,106295,10,8
             155604404,34633,10,5
     """
-    # Label mapping used by the paper and this project
+    # Label mapping used by the paper and this project.
+    # Keys match the WICO dataset category names exactly
+    # (5G_Conspiracy_Graphs / Other_Graphs / Non_Conspiracy_Graphs).
     label_map: dict = field(default_factory=lambda: {
-        "5g-corona":      0,   # False content  → feeds G- model
+        "5g-conspiracy":  0,   # False content  → feeds G- model
         "conspiracy":     1,   # False content  → feeds G- model
         "non-conspiracy": 2,   # True content   → feeds G+ model
     })
     # Re-mapped binary labels (used for SBM fitting)
     binary_label_map: dict = field(default_factory=lambda: {
-        0: "false",  # 5g-corona conspiracy
+        0: "false",  # 5g-conspiracy
         1: "false",  # other conspiracy
         2: "true",   # non-conspiracy
     })
