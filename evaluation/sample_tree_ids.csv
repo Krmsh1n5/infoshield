@@ -1,7 +1,7 @@
 dataset,tweet_id,content_id,root_user,label,raw_label,graph_path,text,num_nodes,num_edges,cascade_size,max_depth,max_width,branching_ratio,num_roots,is_arborescence,temporal_span
-WICO,689,689,25003496,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/689,,101,954,101,3,62,9.445544554455445,9,False,118606.0
-WICO,2028,2028,27228910,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/2028,,101,85,101,1,2,0.8415841584158416,86,False,6991024.0
-WICO,950,950,127293502,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/950,,101,123,101,0,1,1.2178217821782178,83,False,649273.0
-WICO,350,350,89914996,false,5g-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/350,,100,60,100,2,10,0.6,70,False,7926810.0
-WICO,435,435,25507608,false,conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/435,,100,268,100,0,1,2.68,52,False,10382456.0
-WICO,185,185,78394968,false,5g-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/185,,99,80,99,6,6,0.8080808080808081,59,False,497040.0
+WICO,689,689,25003496,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/689,,101,954,101,3,62,1.5874010519681996,9,False,118606.0
+WICO,2028,2028,27228910,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/2028,,101,85,101,1,2,2.0,86,False,6991024.0
+WICO,950,950,127293502,true,non-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/950,,101,123,101,0,1,0.0,83,False,649273.0
+WICO,350,350,89914996,false,5g-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/350,,100,60,100,2,10,1.414213562373095,70,False,7926810.0
+WICO,435,435,25507608,false,conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/435,,100,268,100,0,1,0.0,52,False,10382456.0
+WICO,185,185,78394968,false,5g-conspiracy,/home/krmsh1n5/Desktop/UFAZ/infoshield/data/raw/wico-graph/Non_Conspiracy_Graphs/185,,99,80,99,6,6,1.0,59,False,497040.0
