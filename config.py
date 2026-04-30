@@ -252,7 +252,7 @@ class BiGCNConfig:
     """
     # Text encoder
     text_encoder:       str   = "roberta-base"  # HuggingFace model name
-    text_embed_dim:     int   = 768             # RoBERTa hidden size
+    text_embed_dim:     int   = 772             # RoBERTa hidden size
     freeze_encoder:     bool  = True            # Freeze RoBERTa weights during Phase 2
 
     # GCN layers (applied to both top-down and bottom-up trees)

@@ -119,10 +119,10 @@ class BiGCN(nn.Module):
 
         # Classifier head: concat(z_td, z_bu) → num_classes
         self.classifier = nn.Sequential(
-            nn.Linear(out_dim * 2, out_dim),
+            nn.Linear(out_dim * 6, hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=dropout),
-            nn.Linear(out_dim, num_classes),
+            nn.Linear(hidden_dim, num_classes),
         )
 
         self._init_weights()
@@ -157,12 +157,25 @@ class BiGCN(nn.Module):
         z_bu = self.bu_branch(x, edge_bu)       # (N, 128)
 
         # --- Mean pooling per graph ---
-        z_td_pool = self._mean_pool(z_td, batch)  # (B, 128)
-        z_bu_pool = self._mean_pool(z_bu, batch)  # (B, 128)
+                # --- Root-aware graph pooling ---
+        z_td_mean = self._mean_pool(z_td, batch)        # (B, 128)
+        z_bu_mean = self._mean_pool(z_bu, batch)        # (B, 128)
+
+        z_td_max = self._max_pool(z_td, batch)          # (B, 128)
+        z_bu_max = self._max_pool(z_bu, batch)          # (B, 128)
+
+        root_indices = self._root_indices(batch)        # (B,)
+        z_td_root = z_td[root_indices]                  # (B, 128)
+        z_bu_root = z_bu[root_indices]                  # (B, 128)
 
         # --- Concatenate and classify ---
-        z = torch.cat([z_td_pool, z_bu_pool], dim=-1)  # (B, 256)
+        z = torch.cat(
+            [z_td_mean, z_td_max, z_td_root, z_bu_mean, z_bu_max, z_bu_root],
+            dim=-1,
+        )                                                # (B, 768)
+
         logits = self.classifier(z)                     # (B, num_classes)
+        # print("DEBUG z shape before classifier:", z.shape)
         return logits
 
     # ------------------------------------------------------------------
@@ -180,6 +193,43 @@ class BiGCN(nn.Module):
                            torch.ones(batch.size(0), 1, device=x.device))
         count = count.clamp(min=1)
         return out / count
+    
+    @staticmethod
+    def _max_pool(x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
+        """Segment max over nodes within each graph in the batch."""
+        num_graphs = int(batch.max().item()) + 1
+        out = torch.full(
+            (num_graphs, x.size(-1)),
+            fill_value=-float("inf"),
+            device=x.device,
+            dtype=x.dtype,
+        )
+
+        for graph_id in range(num_graphs):
+            mask = batch == graph_id
+            if mask.any():
+                out[graph_id] = x[mask].max(dim=0).values
+            else:
+                out[graph_id] = 0.0
+
+        return out
+
+
+    @staticmethod
+    def _root_indices(batch: torch.Tensor) -> torch.Tensor:
+        """
+        Return the first node index for each graph in the batch.
+
+        This works because each Data object is built with the root tweet as node 0,
+        and PyG preserves per-graph node order inside a batch.
+        """
+        num_graphs = int(batch.max().item()) + 1
+        roots = []
+
+        for graph_id in range(num_graphs):
+            roots.append(torch.where(batch == graph_id)[0][0])
+
+        return torch.stack(roots)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +246,7 @@ if __name__ == "__main__":
     from torch_geometric.data import Data
 
     N, E = 50, 60
-    x         = torch.randn(N, 768)
+    x         = torch.randn(N, cfg.bigcn.text_embed_dim)
     src       = torch.randint(0, N, (E,))
     dst       = torch.randint(0, N, (E,))
     ei_td     = torch.stack([src, dst])

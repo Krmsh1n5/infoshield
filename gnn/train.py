@@ -206,6 +206,7 @@ def run_cv(
     split:       str  = "twitter15",
     n_folds:     int  = 5,
     start_fold:  int  = 0,
+    only_fold:   int | None = None,
     seed:        int  = 42,
 ) -> List[Dict[str, float]]:
     """
@@ -231,9 +232,14 @@ def run_cv(
 
     results: List[Dict[str, float]] = []
     for fold_idx, (train_idx, val_idx, _test_idx) in enumerate(folds):
-        if fold_idx < start_fold:
+        if only_fold is not None and fold_idx != only_fold:
+            log.info("Skipping fold %d (only_fold=%d)", fold_idx, only_fold)
+            continue
+
+        if only_fold is None and fold_idx < start_fold:
             log.info("Skipping fold %d (start_fold=%d)", fold_idx, start_fold)
             continue
+
         metrics = train_fold(dataset, fold_idx, train_idx, val_idx, ckpt_dir)
         results.append(metrics)
 
@@ -260,8 +266,15 @@ if __name__ == "__main__":
                         choices=["twitter15", "twitter16", "both"])
     parser.add_argument("--folds",      type=int, default=5)
     parser.add_argument("--start-fold", type=int, default=0)
+    parser.add_argument("--only-fold",  type=int, default=None) 
     parser.add_argument("--seed",       type=int, default=42)
+    
     args = parser.parse_args()
 
-    run_cv(split=args.split, n_folds=args.folds,
-           start_fold=args.start_fold, seed=args.seed)
+    run_cv(
+    split=args.split,
+    n_folds=args.folds,
+    start_fold=args.start_fold,
+    only_fold=args.only_fold,
+    seed=args.seed,
+)

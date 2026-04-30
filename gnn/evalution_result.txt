@@ -87,3 +87,25 @@ python -m gnn.evaluate --split twitter15 --all-folds
 21:51:42 [INFO] __main__ —   f1_false             : 0.6450 ± 0.0397
 21:51:42 [INFO] __main__ —   acc_binary           : 0.8204 ± 0.0353
 21:51:42 [INFO] __main__ —   f1_binary            : 0.7062 ± 0.0483
+
+
+
+Testing changes run 1
+00:21:29 [INFO] gnn.dataset — [twitter15] Found 1490 tree files
+00:21:31 [INFO] gnn.dataset — [twitter15] Loaded 1443 graphs (47 skipped). Label dist: {'0': 357, '1': 354, '2': 362, '3': 370}
+00:21:31 [INFO] __main__ — Loaded fold 0 checkpoint (epoch 16, val_acc=0.6207)
+00:21:31 [INFO] __main__ — ── Fold 0  Test Results ──────────────────────
+00:21:31 [INFO] __main__ — 4-class accuracy : 0.6298
+00:21:31 [INFO] __main__ — 4-class macro F1 : 0.6314
+00:21:31 [INFO] __main__ —   F1 [true        ] : 0.6500
+00:21:31 [INFO] __main__ —   F1 [false       ] : 0.5854
+00:21:31 [INFO] __main__ —   F1 [unverified  ] : 0.6277
+00:21:31 [INFO] __main__ —   F1 [non-rumor   ] : 0.6624
+00:21:31 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+00:21:31 [INFO] __main__ —   true       false   unverified      non-rumor
+00:21:31 [INFO] __main__ —   true         39    12      10      11
+00:21:31 [INFO] __main__ —   false        2     48      10      11
+00:21:31 [INFO] __main__ —   unverified   2     18      43      9
+00:21:31 [INFO] __main__ —   non-rumor    5     15      2       52
+00:21:31 [INFO] __main__ — Binary (true vs false) accuracy : 0.7696
+00:21:31 [INFO] __main__ — Binary (true vs false) F1       : 0.6575

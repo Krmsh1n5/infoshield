@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import networkx as nx
 import torch
@@ -145,6 +145,58 @@ class Predictor:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _build_node_features(
+        tweet_id: str,
+        nodes: List[str],
+        edges: List[Tuple[str, str]],
+        tweet_text: str,
+    ) -> torch.Tensor:
+        root_emb = _encoder.encode(tweet_text if tweet_text else "")
+
+        children: Dict[str, List[str]] = {node: [] for node in nodes}
+        parents: Dict[str, List[str]] = {node: [] for node in nodes}
+
+        for p, c in edges:
+            children.setdefault(p, []).append(c)
+            parents.setdefault(c, []).append(p)
+            children.setdefault(c, [])
+            parents.setdefault(p, [])
+
+        depth: Dict[str, int] = {tweet_id: 0}
+        queue: List[str] = [tweet_id]
+
+        while queue:
+            current = queue.pop(0)
+            for child in children.get(current, []):
+                if child not in depth:
+                    depth[child] = depth[current] + 1
+                    queue.append(child)
+
+        max_depth = max(depth.values()) if depth else 1
+        max_in_degree = max((len(parents[node]) for node in nodes), default=1)
+        max_out_degree = max((len(children[node]) for node in nodes), default=1)
+
+        max_depth = max(max_depth, 1)
+        max_in_degree = max(max_in_degree, 1)
+        max_out_degree = max(max_out_degree, 1)
+
+        rows = []
+        for node in nodes:
+            struct = torch.tensor(
+                [
+                    depth.get(node, max_depth) / max_depth,
+                    len(parents[node]) / max_in_degree,
+                    len(children[node]) / max_out_degree,
+                    1.0 if node == tweet_id else 0.0,
+                ],
+                dtype=torch.float32,
+            )
+            rows.append(torch.cat([root_emb, struct], dim=0))
+
+        return torch.stack(rows, dim=0)
+
+
+    @staticmethod
     def _edges_to_pyg(
         tweet_id:  str,
         edges:     List[Tuple[str, str]],
@@ -162,8 +214,7 @@ class Predictor:
         n = len(all_nodes)
 
         # Root embedding broadcast
-        root_emb = _encoder.encode(tweet_text if tweet_text else "")
-        x = root_emb.unsqueeze(0).expand(n, -1).clone()
+        x = Predictor._build_node_features(tweet_id, all_nodes, edges, tweet_text)
 
         if edges:
             src = torch.tensor([node2idx[p] for p, _ in edges], dtype=torch.long)
@@ -188,10 +239,10 @@ class Predictor:
         node2idx  = {n: i for i, n in enumerate(nodes)}
         n         = len(nodes)
 
-        root_emb  = _encoder.encode(tweet_text if tweet_text else "")
-        x         = root_emb.unsqueeze(0).expand(n, -1).clone()
-
         edge_list = list(G.edges())
+        x = Predictor._build_node_features(tweet_id, nodes, edge_list, tweet_text)
+
+        # edge_list = list(G.edges())
         if edge_list:
             src = torch.tensor([node2idx[u] for u, _ in edge_list], dtype=torch.long)
             dst = torch.tensor([node2idx[v] for _, v in edge_list], dtype=torch.long)

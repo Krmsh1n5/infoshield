@@ -169,9 +169,10 @@ def _build_pyg_graph(
 
     Node features
     -------------
-    Every node gets the same RoBERTa CLS embedding of the *root* tweet text.
-    (BiGCN uses structural signal, not per-node text.)
+    Every node gets the RoBERTa CLS embedding of the root tweet text, plus structural node features:
+    depth, in_degree, out_degree, is_root
 
+    Feature dimension = 768 + 4 = 772.
     Edge indices
     ------------
     edge_index    : top-down  (parent → child)
@@ -189,10 +190,52 @@ def _build_pyg_graph(
     n = len(all_nodes)
 
     # --- node features: broadcast root embedding ------------------------
+    # --- node features: root embedding + structural features -------------
     if tweet_id not in embed_cache:
         embed_cache[tweet_id] = _encoder.encode(root_text)
     root_emb = embed_cache[tweet_id]                         # (768,)
-    x = root_emb.unsqueeze(0).expand(n, -1).clone()         # (n, 768)
+
+    children: Dict[str, List[str]] = {node: [] for node in all_nodes}
+    parents: Dict[str, List[str]] = {node: [] for node in all_nodes}
+
+    for p, c in edges:
+        children[p].append(c)
+        parents[c].append(p)
+
+    # Compute BFS depth from root tweet node.
+    depth: Dict[str, int] = {tweet_id: 0}
+    queue: List[str] = [tweet_id]
+
+    while queue:
+        current = queue.pop(0)
+        for child in children.get(current, []):
+            if child not in depth:
+                depth[child] = depth[current] + 1
+                queue.append(child)
+
+    max_depth = max(depth.values()) if depth else 1
+    max_in_degree = max((len(parents[node]) for node in all_nodes), default=1)
+    max_out_degree = max((len(children[node]) for node in all_nodes), default=1)
+
+    max_depth = max(max_depth, 1)
+    max_in_degree = max(max_in_degree, 1)
+    max_out_degree = max(max_out_degree, 1)
+
+    x_rows: List[torch.Tensor] = []
+
+    for node in all_nodes:
+        struct = torch.tensor(
+            [
+                depth.get(node, max_depth) / max_depth,
+                len(parents[node]) / max_in_degree,
+                len(children[node]) / max_out_degree,
+                1.0 if node == tweet_id else 0.0,
+            ],
+            dtype=torch.float32,
+        )
+        x_rows.append(torch.cat([root_emb, struct], dim=0))
+
+    x = torch.stack(x_rows, dim=0)                           # (n, 772)
 
     # --- edge index (top-down) ------------------------------------------
     if edges:
@@ -360,7 +403,12 @@ class TwitterRumourDataset(Dataset):
                 continue
 
             # --- size filter ---
-            n_nodes = len({n for pair in edges for n in pair}) + 1
+            node_set = {tweet_id}
+            for p, c in edges:
+                node_set.add(p)
+                node_set.add(c)
+            n_nodes = len(node_set)
+            # n_nodes = len({n for pair in edges for n in pair}) + 1
             if not (min_size <= n_nodes <= max_size):
                 skipped += 1
                 continue
