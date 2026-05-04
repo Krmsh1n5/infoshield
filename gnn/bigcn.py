@@ -107,7 +107,9 @@ class BiGCN(nn.Module):
     def __init__(self):
         super().__init__()
 
-        in_dim     = cfg.bigcn.text_embed_dim    # 768
+        # +4 for structural node features (depth, in_degree, out_degree, is_root)
+        # appended in dataset._build_pyg_graph — actual input dim is 772
+        in_dim     = cfg.bigcn.text_embed_dim + 4    # 768 + 4 = 772
         hidden_dim = cfg.bigcn.gcn_hidden_dim    # 256
         out_dim    = cfg.bigcn.gcn_output_dim    # 128
         num_layers = cfg.bigcn.gcn_num_layers    # 2
@@ -246,7 +248,7 @@ if __name__ == "__main__":
     from torch_geometric.data import Data
 
     N, E = 50, 60
-    x         = torch.randn(N, cfg.bigcn.text_embed_dim)
+    x         = torch.randn(N, cfg.bigcn.text_embed_dim + 4)  # 772
     src       = torch.randint(0, N, (E,))
     dst       = torch.randint(0, N, (E,))
     ei_td     = torch.stack([src, dst])
