@@ -1,0 +1,111 @@
+python -m gnn.evaluate --split twitter15 --all-folds
+21:51:09 [INFO] gnn.dataset — [twitter15] Found 1490 tree files
+21:51:39 [INFO] gnn.dataset — [twitter15] Loaded 1465 graphs (25 skipped). Label dist: {'0': 364, '1': 361, '2': 368, '3': 372}
+21:51:39 [INFO] __main__ — Loaded fold 0 checkpoint (epoch 32, val_acc=0.6271)
+21:51:40 [INFO] __main__ — ── Fold 0  Test Results ──────────────────────
+21:51:40 [INFO] __main__ — 4-class accuracy : 0.5973
+21:51:40 [INFO] __main__ — 4-class macro F1 : 0.5964
+21:51:40 [INFO] __main__ —   F1 [true        ] : 0.5714
+21:51:40 [INFO] __main__ —   F1 [false       ] : 0.6000
+21:51:40 [INFO] __main__ —   F1 [unverified  ] : 0.5833
+21:51:40 [INFO] __main__ —   F1 [non-rumor   ] : 0.6309
+21:51:40 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+21:51:40 [INFO] __main__ —   true       false   unverified      non-rumor
+21:51:40 [INFO] __main__ —   true         38    12      15      7
+21:51:40 [INFO] __main__ —   false        6     48      10      9
+21:51:40 [INFO] __main__ —   unverified   7     13      42      12
+21:51:40 [INFO] __main__ —   non-rumor    10    14      3       47
+21:51:40 [INFO] __main__ — Binary (true vs false) accuracy : 0.7671
+21:51:40 [INFO] __main__ — Binary (true vs false) F1       : 0.6531
+21:51:40 [INFO] __main__ — Loaded fold 1 checkpoint (epoch 23, val_acc=0.6441)
+21:51:41 [INFO] __main__ — ── Fold 1  Test Results ──────────────────────
+21:51:41 [INFO] __main__ — 4-class accuracy : 0.6724
+21:51:41 [INFO] __main__ — 4-class macro F1 : 0.6684
+21:51:41 [INFO] __main__ —   F1 [true        ] : 0.7111
+21:51:41 [INFO] __main__ —   F1 [false       ] : 0.6621
+21:51:41 [INFO] __main__ —   F1 [unverified  ] : 0.5547
+21:51:41 [INFO] __main__ —   F1 [non-rumor   ] : 0.7456
+21:51:41 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+21:51:41 [INFO] __main__ —   true       false   unverified      non-rumor
+21:51:41 [INFO] __main__ —   true         48    2       13      10
+21:51:41 [INFO] __main__ —   false        2     48      10      12
+21:51:41 [INFO] __main__ —   unverified   7     19      38      10
+21:51:41 [INFO] __main__ —   non-rumor    5     4       2       63
+21:51:41 [INFO] __main__ — Binary (true vs false) accuracy : 0.8630
+21:51:41 [INFO] __main__ — Binary (true vs false) F1       : 0.7619
+21:51:41 [INFO] __main__ — Loaded fold 2 checkpoint (epoch 22, val_acc=0.6610)
+21:51:41 [INFO] __main__ — ── Fold 2  Test Results ──────────────────────
+21:51:41 [INFO] __main__ — 4-class accuracy : 0.6382
+21:51:41 [INFO] __main__ — 4-class macro F1 : 0.6407
+21:51:41 [INFO] __main__ —   F1 [true        ] : 0.7500
+21:51:41 [INFO] __main__ —   F1 [false       ] : 0.6142
+21:51:41 [INFO] __main__ —   F1 [unverified  ] : 0.5677
+21:51:41 [INFO] __main__ —   F1 [non-rumor   ] : 0.6310
+21:51:41 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+21:51:41 [INFO] __main__ —   true       false   unverified      non-rumor
+21:51:41 [INFO] __main__ —   true         51    4       9       9
+21:51:41 [INFO] __main__ —   false        2     39      19      12
+21:51:41 [INFO] __main__ —   unverified   1     9       44      20
+21:51:41 [INFO] __main__ —   non-rumor    9     3       9       53
+21:51:41 [INFO] __main__ — Binary (true vs false) accuracy : 0.8174
+21:51:41 [INFO] __main__ — Binary (true vs false) F1       : 0.6610
+21:51:41 [INFO] __main__ — Loaded fold 3 checkpoint (epoch 32, val_acc=0.7288)
+21:51:42 [INFO] __main__ — ── Fold 3  Test Results ──────────────────────
+21:51:42 [INFO] __main__ — 4-class accuracy : 0.6553
+21:51:42 [INFO] __main__ — 4-class macro F1 : 0.6564
+21:51:42 [INFO] __main__ —   F1 [true        ] : 0.7660
+21:51:42 [INFO] __main__ —   F1 [false       ] : 0.6364
+21:51:42 [INFO] __main__ —   F1 [unverified  ] : 0.6438
+21:51:42 [INFO] __main__ —   F1 [non-rumor   ] : 0.5793
+21:51:42 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+21:51:42 [INFO] __main__ —   true       false   unverified      non-rumor
+21:51:42 [INFO] __main__ —   true         54    5       5       9
+21:51:42 [INFO] __main__ —   false        2     49      11      10
+21:51:42 [INFO] __main__ —   unverified   5     12      47      9
+21:51:42 [INFO] __main__ —   non-rumor    7     16      10      42
+21:51:42 [INFO] __main__ — Binary (true vs false) accuracy : 0.8000
+21:51:42 [INFO] __main__ — Binary (true vs false) F1       : 0.6901
+21:51:42 [INFO] __main__ — Loaded fold 4 checkpoint (epoch 25, val_acc=0.7288)
+21:51:42 [INFO] __main__ — ── Fold 4  Test Results ──────────────────────
+21:51:42 [INFO] __main__ — 4-class accuracy : 0.6689
+21:51:42 [INFO] __main__ — 4-class macro F1 : 0.6659
+21:51:42 [INFO] __main__ —   F1 [true        ] : 0.6759
+21:51:42 [INFO] __main__ —   F1 [false       ] : 0.7123
+21:51:42 [INFO] __main__ —   F1 [unverified  ] : 0.5846
+21:51:42 [INFO] __main__ —   F1 [non-rumor   ] : 0.6909
+21:51:42 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+21:51:42 [INFO] __main__ —   true       false   unverified      non-rumor
+21:51:42 [INFO] __main__ —   true         49    7       9       8
+21:51:42 [INFO] __main__ —   false        6     52      3       11
+21:51:42 [INFO] __main__ —   unverified   11    10      38      14
+21:51:42 [INFO] __main__ —   non-rumor    6     5       7       57
+21:51:42 [INFO] __main__ — Binary (true vs false) accuracy : 0.8545
+21:51:42 [INFO] __main__ — Binary (true vs false) F1       : 0.7647
+21:51:42 [INFO] __main__ — === Averaged across 5 folds ===
+21:51:42 [INFO] __main__ —   acc_4class           : 0.6464 ± 0.0274
+21:51:42 [INFO] __main__ —   f1_macro             : 0.6456 ± 0.0264
+21:51:42 [INFO] __main__ —   f1_false             : 0.6450 ± 0.0397
+21:51:42 [INFO] __main__ —   acc_binary           : 0.8204 ± 0.0353
+21:51:42 [INFO] __main__ —   f1_binary            : 0.7062 ± 0.0483
+
+
+
+Testing changes run 1
+00:21:29 [INFO] gnn.dataset — [twitter15] Found 1490 tree files
+00:21:31 [INFO] gnn.dataset — [twitter15] Loaded 1443 graphs (47 skipped). Label dist: {'0': 357, '1': 354, '2': 362, '3': 370}
+00:21:31 [INFO] __main__ — Loaded fold 0 checkpoint (epoch 16, val_acc=0.6207)
+00:21:31 [INFO] __main__ — ── Fold 0  Test Results ──────────────────────
+00:21:31 [INFO] __main__ — 4-class accuracy : 0.6298
+00:21:31 [INFO] __main__ — 4-class macro F1 : 0.6314
+00:21:31 [INFO] __main__ —   F1 [true        ] : 0.6500
+00:21:31 [INFO] __main__ —   F1 [false       ] : 0.5854
+00:21:31 [INFO] __main__ —   F1 [unverified  ] : 0.6277
+00:21:31 [INFO] __main__ —   F1 [non-rumor   ] : 0.6624
+00:21:31 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+00:21:31 [INFO] __main__ —   true       false   unverified      non-rumor
+00:21:31 [INFO] __main__ —   true         39    12      10      11
+00:21:31 [INFO] __main__ —   false        2     48      10      11
+00:21:31 [INFO] __main__ —   unverified   2     18      43      9
+00:21:31 [INFO] __main__ —   non-rumor    5     15      2       52
+00:21:31 [INFO] __main__ — Binary (true vs false) accuracy : 0.7696
+00:21:31 [INFO] __main__ — Binary (true vs false) F1       : 0.6575
