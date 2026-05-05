@@ -1,42 +1,18 @@
 """
 gnn/predict.py
 ==============
-Inference module: run trained BiGCN on a new propagation tree and return
-a structured prediction that feeds the SBM pipeline in Phase 3/4.
+Inference module: run trained BiGCN on a new propagation tree and return a
+structured prediction that feeds the SBM pipeline in Phase 3/4.
 
-Two entry points
-----------------
-1. predict_from_path(graph_path, tweet_text) — raw tree file path
-2. predict_from_digraph(G, tweet_text)        — pre-built NetworkX DiGraph
-
-Both return a PredictionResult dataclass.
-
-Output fields
--------------
-label_4class  : int          — 0=true, 1=false, 2=unverified, 3=non-rumor
-label_name    : str          — human-readable
-binary_label  : str          — "true" | "false" | "uncertain"
-confidence    : float        — max softmax probability (0–1)
-probs         : list[float]  — softmax vector (4 values)
-high_confidence : bool       — confidence ≥ cfg.sbm.label_confidence_threshold
-
-Usage
------
-    from gnn.predict import Predictor
-
-    predictor = Predictor(fold=0, split="twitter15")
-
-    result = predictor.predict_from_path(
-        graph_path="data/raw/twitter15/tree/12345.txt",
-        tweet_text="5G towers are causing COVID symptoms",
-    )
-    print(result.binary_label, result.confidence)
+This module re-uses the dataset's _build_pyg_graph helper so that inference
+features always match training features exactly (RoBERTa text + 4 structural
+node features + 5 graph-level features).
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -48,24 +24,16 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import cfg
 from gnn.bigcn import BiGCN
-from gnn.dataset import _parse_tree_file, _encoder
+from gnn.dataset import _build_pyg_graph, _parse_tree_file
 
 log = logging.getLogger(__name__)
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 4-class label names (Twitter15 convention)
 _LABEL_NAMES = {0: "true", 1: "false", 2: "unverified", 3: "non-rumor"}
-
-# Binary mapping for SBM pipeline
-# true(0) → "true", false(1) → "false", unverified(2) → "uncertain", non-rumor(3) → "true"
-_BINARY_MAP = {0: "true", 1: "false", 2: "uncertain", 3: "true"}
+_BINARY_MAP  = {0: "true", 1: "false", 2: "uncertain", 3: "true"}
 
 
 # ---------------------------------------------------------------------------
-# Result dataclass
-# ---------------------------------------------------------------------------
-
 @dataclass
 class PredictionResult:
     tweet_id:        str
@@ -96,192 +64,83 @@ class PredictionResult:
 
 
 # ---------------------------------------------------------------------------
-# Predictor
-# ---------------------------------------------------------------------------
-
 class Predictor:
-    """
-    Wraps a trained BiGCN checkpoint and exposes predict_* methods.
-
-    Parameters
-    ----------
-    fold  : int    — which fold's checkpoint to load (0-indexed)
-    split : str    — "twitter15" | "twitter16" | "both"
-    """
+    """Wrap a trained BiGCN checkpoint and expose predict_* methods."""
 
     def __init__(self, fold: int = 0, split: str = "twitter15"):
         self.fold  = fold
         self.split = split
         self._model: Optional[BiGCN] = None
+        self._embed_cache: Dict[str, torch.Tensor] = {}
 
     # ------------------------------------------------------------------
-    # Lazy model loading
-    # ------------------------------------------------------------------
-
     def _load_model(self) -> BiGCN:
         if self._model is not None:
             return self._model
 
         ckpt_dir  = Path(cfg.paths.bigcn_checkpoint).parent / self.split
         ckpt_path = ckpt_dir / f"fold{self.fold}_best.pt"
-
         if not ckpt_path.exists():
             raise FileNotFoundError(
                 f"Checkpoint not found: {ckpt_path}\n"
                 "Train the model with gnn/train.py first."
             )
 
-        ckpt  = torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
-        model = BiGCN().to(DEVICE)
+        ckpt      = torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
+        in_dim    = int(ckpt.get("in_dim",    cfg.bigcn.text_embed_dim))
+        graph_dim = int(ckpt.get("graph_dim", 5))
+        model     = BiGCN(in_dim=in_dim, graph_dim=graph_dim).to(DEVICE)
         model.load_state_dict(ckpt["model_state"])
         model.eval()
         self._model = model
         log.info("Loaded BiGCN checkpoint: %s (epoch=%d, val_acc=%.4f)",
-                 ckpt_path.name, ckpt.get("epoch", -1), ckpt.get("val_acc", float("nan")))
+                 ckpt_path.name, ckpt.get("epoch", -1),
+                 ckpt.get("val_acc", float("nan")))
         return model
 
     # ------------------------------------------------------------------
-    # Graph → PyG Data
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _build_node_features(
-        tweet_id: str,
-        nodes: List[str],
-        edges: List[Tuple[str, str]],
-        tweet_text: str,
-    ) -> torch.Tensor:
-        root_emb = _encoder.encode(tweet_text if tweet_text else "")
-
-        children: Dict[str, List[str]] = {node: [] for node in nodes}
-        parents: Dict[str, List[str]] = {node: [] for node in nodes}
-
-        for p, c in edges:
-            children.setdefault(p, []).append(c)
-            parents.setdefault(c, []).append(p)
-            children.setdefault(c, [])
-            parents.setdefault(p, [])
-
-        depth: Dict[str, int] = {tweet_id: 0}
-        queue: List[str] = [tweet_id]
-
-        while queue:
-            current = queue.pop(0)
-            for child in children.get(current, []):
-                if child not in depth:
-                    depth[child] = depth[current] + 1
-                    queue.append(child)
-
-        max_depth = max(depth.values()) if depth else 1
-        max_in_degree = max((len(parents[node]) for node in nodes), default=1)
-        max_out_degree = max((len(children[node]) for node in nodes), default=1)
-
-        max_depth = max(max_depth, 1)
-        max_in_degree = max(max_in_degree, 1)
-        max_out_degree = max(max_out_degree, 1)
-
-        rows = []
-        for node in nodes:
-            struct = torch.tensor(
-                [
-                    depth.get(node, max_depth) / max_depth,
-                    len(parents[node]) / max_in_degree,
-                    len(children[node]) / max_out_degree,
-                    1.0 if node == tweet_id else 0.0,
-                ],
-                dtype=torch.float32,
-            )
-            rows.append(torch.cat([root_emb, struct], dim=0))
-
-        return torch.stack(rows, dim=0)
-
-
-    @staticmethod
-    def _edges_to_pyg(
-        tweet_id:  str,
-        edges:     List[Tuple[str, str]],
+    def _build(
+        self,
+        tweet_id:   str,
+        edges:      List[Tuple[str, str]],
         tweet_text: str,
     ) -> Data:
-        """Build a PyG Data object from parsed edges + root tweet text."""
-        all_nodes = [tweet_id]
-        for p, c in edges:
-            if p not in all_nodes:
-                all_nodes.append(p)
-            if c not in all_nodes:
-                all_nodes.append(c)
-
-        node2idx = {n: i for i, n in enumerate(all_nodes)}
-        n = len(all_nodes)
-
-        # Root embedding broadcast
-        x = Predictor._build_node_features(tweet_id, all_nodes, edges, tweet_text)
-
-        if edges:
-            src = torch.tensor([node2idx[p] for p, _ in edges], dtype=torch.long)
-            dst = torch.tensor([node2idx[c] for _, c in edges], dtype=torch.long)
-            edge_index    = torch.stack([src, dst], dim=0)
-            edge_index_bu = torch.stack([dst, src], dim=0)
-        else:
-            edge_index    = torch.zeros((2, 0), dtype=torch.long)
-            edge_index_bu = torch.zeros((2, 0), dtype=torch.long)
-
-        return Data(
-            x=x,
-            edge_index=edge_index,
-            edge_index_bu=edge_index_bu,
-            num_nodes=n,
+        """Use the dataset's exact feature construction so train/test stay aligned."""
+        return _build_pyg_graph(
+            tweet_id=tweet_id,
+            edges=edges,
+            label=0,                                       # placeholder, ignored
+            root_text=tweet_text or "",
+            embed_cache=self._embed_cache,
+            per_node_text=None,
         )
 
+    # ------------------------------------------------------------------
     @staticmethod
-    def _digraph_to_pyg(G: nx.DiGraph, tweet_id: str, tweet_text: str) -> Data:
-        """Convert a NetworkX DiGraph into a PyG Data object."""
-        nodes     = list(G.nodes())
-        node2idx  = {n: i for i, n in enumerate(nodes)}
-        n         = len(nodes)
-
-        edge_list = list(G.edges())
-        x = Predictor._build_node_features(tweet_id, nodes, edge_list, tweet_text)
-
-        # edge_list = list(G.edges())
-        if edge_list:
-            src = torch.tensor([node2idx[u] for u, _ in edge_list], dtype=torch.long)
-            dst = torch.tensor([node2idx[v] for _, v in edge_list], dtype=torch.long)
-            edge_index    = torch.stack([src, dst], dim=0)
-            edge_index_bu = torch.stack([dst, src], dim=0)
-        else:
-            edge_index    = torch.zeros((2, 0), dtype=torch.long)
-            edge_index_bu = torch.zeros((2, 0), dtype=torch.long)
-
-        return Data(
-            x=x,
-            edge_index=edge_index,
-            edge_index_bu=edge_index_bu,
-            num_nodes=n,
-        )
+    def _digraph_to_edges(G: nx.DiGraph, tweet_id: str) -> List[Tuple[str, str]]:
+        """Return edges as (parent, child) pairs. Drops self-loops."""
+        # Make sure the root is in the node set so _build_pyg_graph works
+        edges = [(str(u), str(v)) for u, v in G.edges() if u != v]
+        return edges
 
     # ------------------------------------------------------------------
-    # Core inference
-    # ------------------------------------------------------------------
-
     def _infer(self, data: Data, tweet_id: str) -> PredictionResult:
         model = self._load_model()
         data  = data.to(DEVICE)
 
         with torch.no_grad():
-            logits = model(data)                        # (1, 4)
+            logits = model(data)                            # (1, 4)
             probs  = torch.softmax(logits, dim=-1).squeeze(0).cpu().tolist()
 
         label_4class = int(torch.tensor(probs).argmax().item())
         confidence   = float(probs[label_4class])
-        label_name   = _LABEL_NAMES[label_4class]
-        binary_label = _BINARY_MAP[label_4class]
         threshold    = float(cfg.sbm.label_confidence_threshold)
 
         return PredictionResult(
             tweet_id=tweet_id,
             label_4class=label_4class,
-            label_name=label_name,
-            binary_label=binary_label,
+            label_name=_LABEL_NAMES[label_4class],
+            binary_label=_BINARY_MAP[label_4class],
             confidence=confidence,
             probs=probs,
             high_confidence=confidence >= threshold,
@@ -291,58 +150,25 @@ class Predictor:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-
-    def predict_from_path(
-        self,
-        graph_path: str,
-        tweet_text: str = "",
-    ) -> PredictionResult:
-        """
-        Classify a propagation tree from its raw .txt file path.
-
-        Parameters
-        ----------
-        graph_path : path to twitter15/16 tree file
-        tweet_text : root tweet text (optional but recommended)
-        """
+    def predict_from_path(self, graph_path: str, tweet_text: str = "") -> PredictionResult:
         path     = Path(graph_path)
         tweet_id = path.stem
         edges, _ = _parse_tree_file(path)
-        data     = self._edges_to_pyg(tweet_id, edges, tweet_text)
+        data     = self._build(tweet_id, edges, tweet_text)
         return self._infer(data, tweet_id)
 
     def predict_from_digraph(
-        self,
-        G:          nx.DiGraph,
-        tweet_id:   str,
-        tweet_text: str = "",
+        self, G: nx.DiGraph, tweet_id: str, tweet_text: str = "",
     ) -> PredictionResult:
-        """
-        Classify a propagation tree already in NetworkX DiGraph form.
-
-        Parameters
-        ----------
-        G          : directed graph (nodes = tweet/user IDs, edges = propagation)
-        tweet_id   : ID of the root/source tweet
-        tweet_text : root tweet text (optional but recommended)
-        """
-        data = self._digraph_to_pyg(G, tweet_id, tweet_text)
+        edges = self._digraph_to_edges(G, tweet_id)
+        data  = self._build(tweet_id, edges, tweet_text)
         return self._infer(data, tweet_id)
 
-    def predict_batch(
-        self,
-        items: List[Tuple[str, str]],
-    ) -> List[PredictionResult]:
-        """
-        Classify multiple (graph_path, tweet_text) pairs efficiently.
-
-        Useful for bulk SBM fitting in Phase 4.
-        """
+    def predict_batch(self, items: List[Tuple[str, str]]) -> List[PredictionResult]:
         results: List[PredictionResult] = []
         for graph_path, tweet_text in items:
             try:
-                r = self.predict_from_path(graph_path, tweet_text)
-                results.append(r)
+                results.append(self.predict_from_path(graph_path, tweet_text))
             except Exception as e:
                 log.warning("Skipping %s: %s", graph_path, e)
         return results

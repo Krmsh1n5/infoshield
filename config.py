@@ -259,14 +259,15 @@ class BiGCNConfig:
     gcn_hidden_dim:     int   = 256
     gcn_output_dim:     int   = 128
     gcn_num_layers:     int   = 2
-    dropout:            float = 0.3
+    dropout:            float = 0.5
 
     # Training
     num_epochs:         int   = 200
     batch_size:         int   = 32
     learning_rate:      float = 5e-4
-    weight_decay:       float = 1e-4
+    weight_decay:       float = 5e-4
     patience:           int   = 20             # Early stopping
+    label_smoothing:     float = 0.05 
 
     # Output
     num_classes:        int   = 4              # Twitter15 has 4 labels
