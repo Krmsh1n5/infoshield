@@ -1,0 +1,5 @@
+alpha,lambda,pair_label,E_R_inf_true,E_R_inf_false,P_R_inf_lt5_true,P_R_inf_lt5_false,n_samples_true,n_samples_false
+control,control,control,56.1,59.8,0.0,0.0,500,500
+1.5,1.0,"α=1.5,λ=1.0",42.6,38.2,0.05,0.14,500,500
+2.0,1.5,"α=2.0,λ=1.5",45.1,41.7,0.03,0.1,500,500
+3.0,2.0,"α=3.0,λ=2.0",48.7,46.2,0.02,0.08,500,500

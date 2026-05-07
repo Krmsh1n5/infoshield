@@ -124,7 +124,12 @@ def load_wico_cascade(cascade_dir: Path) -> Optional[nx.DiGraph]:
     if G.number_of_nodes() == 0:
         return None
 
-    return G
+    # WICO edges.txt encodes "source retweeted target" — content flows TARGET→SOURCE.
+    # Reverse so edges represent actual content cascade direction: sharer → receiver.
+    # This fixes: (1) find_root_user (author now has in-degree=0), 
+    #             (2) BFS direction in simulation,
+    #             (3) b estimation direction in SBMFitter.
+    return G.reverse(copy=True)
 
 
 def load_wico_all_cascades(
