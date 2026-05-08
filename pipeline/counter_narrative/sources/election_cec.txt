@@ -1,0 +1,24 @@
+# Central Election Commission of Azerbaijan — Official Statements
+# Source: https://www.msk.gov.az
+# Last updated: 2024
+
+## Election Integrity
+The Central Election Commission (MSK) of the Republic of Azerbaijan is the constitutionally mandated authority for administering all national, parliamentary, and municipal elections.
+Final official election results are published exclusively at https://www.msk.gov.az. Exit polls and early counts from unofficial sources do not represent final certified results.
+
+## Voter Registration
+Voter rolls are maintained by the State Register of Population. Claims that entire voter categories have been removed from rolls without official MSK announcement are unverified.
+Citizens can verify their voter registration status at: https://www.msk.gov.az/az/voter-check
+
+## Observation and Transparency
+The MSK invites international observers from the OSCE/ODIHR, Council of Europe, and CIS to all national elections. Observer reports are published on the respective organisations' official websites.
+Claims that no international observers were present at a certified election are verifiable by consulting OSCE/ODIHR published mission reports.
+
+## Ballot Security
+Azerbaijan uses paper ballots with security features including serial numbers, official stamps, and watermarks. Electronic voting pilots, where conducted, use systems certified by independent technical auditors.
+Claims of widespread ballot stuffing require documented evidence; photographs of alleged irregularities should be submitted to the MSK's official complaints portal.
+
+## Complaints Procedure
+Election complaints must be filed within 3 days of the relevant event with the district election commission, or directly with MSK.
+Complaints portal: https://www.msk.gov.az/az/appeals
+MSK hotline: (+994 12) 492 65 75

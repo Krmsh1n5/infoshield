@@ -63,6 +63,7 @@ from network_model import SBM, make_synthetic_sbm
 from optimizer import DropoutOptimizer
 
 from .sbm_fitter import fit_sbm, load_wico_all_cascades, find_root_user
+from .segmented_sbm_fitter import load_segment, DEFAULT_SEGMENTS_DIR
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -169,6 +170,7 @@ def run_pipeline(
     force_sbm_refit: bool = False,
     output_dir:      Optional[Path] = None,
     seed:            int  = 42,
+    segment_name:    Optional[str]  = None,
 ) -> pd.DataFrame:
     """
     Run the full WICO evaluation pipeline.
@@ -180,6 +182,14 @@ def run_pipeline(
          b. Run cascade-following BFS on the false cascade with LP dropout.
          c. Record R∞ for each.
 
+    Parameters
+    ----------
+    segment_name : if provided, load the SBM from the named segment directory
+        (data/processed/sbm_segments/{segment_name}/) instead of the global SBM.
+        One of: "conspiracy_5g", "other_conspiracy", "all_conspiracy".
+        When set, results are saved with the segment name as a suffix, e.g.
+        pipeline_table2_conspiracy_5g.csv.
+
     Returns a DataFrame with columns:
         sample_id, alpha, lambda, pair_label, label, cascade_size
     """
@@ -190,18 +200,31 @@ def run_pipeline(
     rng = np.random.default_rng(seed)
 
     # ── Step 1: SBM ──────────────────────────────────────────────────────────
-    sbm_dir = Path(cfg.paths.sbm_matrices)
-    if skip_sbm_fit and (sbm_dir / "b_plus.npy").exists():
-        log.info("Loading SBM from %s", sbm_dir)
-        sbm = SBM.load(sbm_dir)
+    if segment_name is not None:
+        # Load segment-specific SBM from sbm_segments/{segment_name}/
+        seg_dir = DEFAULT_SEGMENTS_DIR / segment_name
+        log.info("Loading segment SBM: %s from %s", segment_name, seg_dir)
+        try:
+            sbm = load_segment(segment_name)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Segment {segment_name!r} not found at {seg_dir}. "
+                "Run `python -m pipeline.segmented_sbm_fitter --segment "
+                f"{segment_name}` first."
+            )
     else:
-        log.info("Fitting SBM (label_source=%s) ...", label_source)
-        sbm = fit_sbm(
-            label_source   = label_source,
-            fold           = fold,
-            split          = split,
-            force_refit    = force_sbm_refit,
-        )
+        sbm_dir = Path(cfg.paths.sbm_matrices)
+        if skip_sbm_fit and (sbm_dir / "b_plus.npy").exists():
+            log.info("Loading SBM from %s", sbm_dir)
+            sbm = SBM.load(sbm_dir)
+        else:
+            log.info("Fitting SBM (label_source=%s) ...", label_source)
+            sbm = fit_sbm(
+                label_source   = label_source,
+                fold           = fold,
+                split          = split,
+                force_refit    = force_sbm_refit,
+            )
 
     k = sbm.k
     log.info("SBM ready: %s", sbm)
@@ -304,12 +327,13 @@ def run_pipeline(
     df = pd.DataFrame(rows)
 
     # ── Step 4: Save and display ──────────────────────────────────────────────
-    raw_path = output_dir / "pipeline_results_raw.csv"
+    suffix    = f"_{segment_name}" if segment_name else ""
+    raw_path  = output_dir / f"pipeline_results_raw{suffix}.csv"
     df.to_csv(raw_path, index=False)
     log.info("Raw results: %s (%d rows)", raw_path, len(df))
 
     table2      = _build_table2(df)
-    table2_path = output_dir / "pipeline_table2.csv"
+    table2_path = output_dir / f"pipeline_table2{suffix}.csv"
     table2.to_csv(table2_path, index=False)
     log.info("Table II: %s", table2_path)
 
@@ -384,6 +408,16 @@ if __name__ == "__main__":
     parser.add_argument("--force-sbm-refit", action="store_true")
     parser.add_argument("--seed",            type=int, default=42)
     parser.add_argument("--output-dir",      default=None)
+    parser.add_argument(
+        "--segment",
+        default=None,
+        choices=["all_conspiracy", "conspiracy_5g", "other_conspiracy"],
+        help=(
+            "Use a per-segment SBM instead of the global SBM. "
+            "The segment must have been fitted first via "
+            "pipeline.segmented_sbm_fitter."
+        ),
+    )
     args = parser.parse_args()
 
     run_pipeline(
@@ -395,4 +429,5 @@ if __name__ == "__main__":
         force_sbm_refit = args.force_sbm_refit,
         seed            = args.seed,
         output_dir      = Path(args.output_dir) if args.output_dir else None,
+        segment_name    = args.segment,
     )

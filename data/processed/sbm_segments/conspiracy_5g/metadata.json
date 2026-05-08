@@ -1,0 +1,13 @@
+{
+  "segment": "conspiracy_5g",
+  "false_dirs": [
+    "5G_Conspiracy_Graphs"
+  ],
+  "true_dirs": [
+    "Non_Conspiracy_Graphs"
+  ],
+  "description": "5G conspiracy cascades vs verified non-conspiracy content. Hypothesis: 5G content crosses class boundaries more aggressively than other misinformation types due to health-political bridging.",
+  "n_true_cascades": 2490,
+  "n_false_cascades": 406,
+  "k": 3
+}
