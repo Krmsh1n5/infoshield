@@ -245,6 +245,40 @@ class Twitter16Config:
 
 
 @dataclass
+class WeiboConfig:
+    """
+    Weibo (Sina Weibo, Chinese) dataset settings.
+    Source: https://github.com/TianBian95/BiGCN (data/Weibo/)
+
+    Directory structure:
+        weibo/
+            tree/
+                <event_id>.txt      ← same edge format as Twitter15
+            label.txt               ← "label:event_id" per line
+
+    Labels: rumours / non-rumours  (mapped to false / true)
+    """
+    label_map: dict = field(default_factory=lambda: {
+        "rumours":     0,
+        "rumour":      0,
+        "non-rumours": 1,
+        "non-rumour":  1,
+        "non-rumor":   1,
+    })
+    binary_label_map: dict = field(default_factory=lambda: {
+        0: "false",
+        1: "true",
+    })
+
+    tree_dir:      str = "tree"
+    label_file:    str = "label.txt"
+    root_sentinel: str = "ROOT"
+
+    min_tree_size: int = 3
+    max_tree_size: int = 2000
+
+
+@dataclass
 class BiGCNConfig:
     """
     Hyperparameters for the BiGCN model (Phase 2).
@@ -259,14 +293,15 @@ class BiGCNConfig:
     gcn_hidden_dim:     int   = 256
     gcn_output_dim:     int   = 128
     gcn_num_layers:     int   = 2
-    dropout:            float = 0.3
+    dropout:            float = 0.5
 
     # Training
     num_epochs:         int   = 200
     batch_size:         int   = 32
     learning_rate:      float = 5e-4
-    weight_decay:       float = 1e-4
+    weight_decay:       float = 5e-4
     patience:           int   = 20             # Early stopping
+    label_smoothing:     float = 0.05 
 
     # Output
     num_classes:        int   = 4              # Twitter15 has 4 labels
