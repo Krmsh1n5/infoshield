@@ -465,11 +465,26 @@ class SBMFitter:
         # Normalise: b̂_uv = transfers_uv / max(1, opportunity_u)
         b = np.zeros((k, k), dtype=np.float64)
         for u in range(k):
-            denom = max(1.0, sharing_opportunity[u])
-            b[u, :] = transfer_counts[u, :] / denom
+            n_sharers = max(1.0, sharing_opportunity[u])
+            for v in range(k):
+                # Divide by target class size: gives per-(u_user, v_user) pair probability
+                # This is what b_uv means in the paper's SBM — the probability that
+                # one infected user in Cu infects one specific susceptible user in Cv
+                cv_size = max(1.0, float(self._class_sizes[v]))
+                b[u, v] = transfer_counts[u, v] / (n_sharers * cv_size)
 
-        # Laplace smoothing for unobserved pairs
-        b = np.where(b == 0, 1e-8, b)
+        # Smooth cells with fewer than min_count observations toward the row mean
+        # This prevents b=1.0 from cells with 1 transfer / 1 opportunity (sparse pairs)
+        min_count = 5
+        for u in range(k):
+            for v in range(k):
+                if transfer_counts[u, v] < min_count and sharing_opportunity[u] > 0:
+                    # Pull toward the row mean of observed cells
+                    row_mean = float(transfer_counts[u, :].sum() /
+                                     max(1.0, sharing_opportunity[u] * k))
+                    weight = transfer_counts[u, v] / min_count
+                    b[u, v] = weight * b[u, v] + (1 - weight) * max(row_mean, 1e-6)
+        b = np.where(b < 1e-8, 1e-8, b)
         b = np.clip(b, 0.0, 1.0)
 
         if label == "true":

@@ -316,15 +316,9 @@ class SBMConfig:
     """
     # How many polarization classes to fit from the data
     # 13 partitions for WICO (from modularity clustering)
-    num_partitions:         int   = 13
-
-    # Modularity clustering resolution parameter (higher = more, smaller partitions)
-    clustering_resolution:  float = 2.0
-
-    # Minimum fraction of total users for a partition to be kept
-    # Partitions below this threshold are merged into the nearest class
-    # The paper merged all partitions with < 1% of users
-    min_partition_fraction: float = 0.01
+    num_partitions:         int   = 13    # keep as is
+    clustering_resolution:  float = 0.1   # was 0.5 → fewer, more polarised communities
+    min_partition_fraction: float = 0.10  # was 0.05 → aggressive merging
 
     # Confidence threshold from GNN output before a label feeds the SBM fitter
     # Labels below this are discarded (treated as "uncertain")
