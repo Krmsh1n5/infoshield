@@ -131,3 +131,23 @@ Test Results ──────────────────────
 07:56:30 [INFO] __main__ — non-rumor 6 6 2 60 
 07:56:30 [INFO] __main__ — Binary (true vs false) accuracy : 0.7763 
 07:56:30 [INFO] __main__ — Binary (true vs false) F1 : 0.6080
+
+
+7may
+14:55:46 [INFO] __main__ — Loaded fold 0 checkpoint (epoch 52, val_acc=0.7094)
+14:57:30 [INFO] __main__ — ── Fold 0  Test Results ──────────────────────
+14:57:30 [INFO] __main__ — 4-class accuracy : 0.6621
+14:57:30 [INFO] __main__ — 4-class macro F1 : 0.6584
+14:57:30 [INFO] __main__ —   F1 [true        ] : 0.7355
+14:57:30 [INFO] __main__ —   F1 [false       ] : 0.6629
+14:57:30 [INFO] __main__ —   F1 [unverified  ] : 0.5846
+14:57:30 [INFO] __main__ —   F1 [non-rumor   ] : 0.6508
+14:57:30 [INFO] __main__ — Confusion matrix (rows=true, cols=pred):
+14:57:30 [INFO] __main__ —   true       false   unverified      non-rumor
+14:57:30 [INFO] __main__ —   true         57    5       8       4
+14:57:30 [INFO] __main__ —   false        7     58      4       4
+14:57:30 [INFO] __main__ —   unverified   8     23      38      5
+14:57:30 [INFO] __main__ —   non-rumor    9     16      6       41
+14:57:30 [INFO] __main__ — Binary (true vs false) accuracy : 0.8356
+14:57:30 [INFO] __main__ — Binary (true vs false) F1       : 0.7632
+14:57:30 [INFO] __main__ — Wrote per-prediction CSV: C:\Users\Azerin\Documents\uni\student_lead\infoshield\evaluation\predictions_twitter15_fold0.csv

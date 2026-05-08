@@ -3,15 +3,15 @@ gnn/evaluate.py
 ===============
 Evaluate a trained BiGCN on the held-out test fold(s).
 
-Phase 2.2 changes
------------------
-* Saves a per-prediction CSV at evaluation/predictions_fold{k}.csv with columns:
-      fold, tweet_id, true_label, pred_label, confidence,
-      num_nodes, max_depth, max_width, branching_ratio
-  These are the columns required for failure-mode analysis.
-* Auto-handles the new graph_features field on each Data object.
-* Reports both 4-class metrics (Twitter15 protocol) and binary metrics
-  (true vs false, used by the SBM pipeline downstream).
+Changes from previous version
+------------------------------
+* Removed get_cv_splits import — folds now come from dataset.get_kfold_splits().
+* Removed graph_features / _denormalise_graph_features — that field no longer
+  exists on Data objects in the current dataset.py.
+* BiGCN is instantiated with no constructor args (parameters come from cfg).
+* split="both" no longer relies on the removed __add__ operator.
+* Per-prediction CSV retains: fold, tweet_id, true/pred labels, confidence,
+  and num_nodes (derived from batch.ptr, always available).
 
 Usage
 -----
@@ -43,7 +43,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import cfg
 from gnn.bigcn import BiGCN
-from gnn.dataset import TwitterRumourDataset, get_cv_splits
+from gnn.dataset import TwitterRumourDataset
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -56,7 +56,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 CLASS_NAMES = ["true", "false", "unverified", "non-rumor"]
 
-# Binary mapping (per spec): true(0)/non-rumor(3) → 0,  false(1) → 1,  unverified(2) → ignore
+# Binary mapping (per spec):
+#   true(0) / non-rumor(3) → 0,  false(1) → 1,  unverified(2) → skip
 _BINARY_MAP = {0: 0, 1: 1, 2: -1, 3: 0}
 
 # Where prediction CSVs are written
@@ -65,41 +66,57 @@ _PRED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
-# Inference helpers
+# Dataset helpers
+# ---------------------------------------------------------------------------
+
+def _load_dataset(split: str) -> TwitterRumourDataset:
+    """
+    Load dataset for the given split.
+
+    For split="both" the two datasets are merged into a single
+    TwitterRumourDataset-like object by directly combining their data lists.
+    This avoids the removed __add__ operator.
+    """
+    if split == "both":
+        ds15 = TwitterRumourDataset("twitter15")
+        ds16 = TwitterRumourDataset("twitter16")
+        # Build a lightweight merged wrapper
+        combined = TwitterRumourDataset.__new__(TwitterRumourDataset)
+        combined.split = "both"
+        combined._data_list = ds15._data_list + ds16._data_list
+        return combined
+    return TwitterRumourDataset(split)
+
+
+# ---------------------------------------------------------------------------
+# Inference
 # ---------------------------------------------------------------------------
 
 def _load_checkpoint(ckpt_path: Path) -> Dict:
     return torch.load(ckpt_path, map_location=DEVICE, weights_only=False)
 
 
-def _denormalise_graph_features(gf: np.ndarray) -> Tuple[float, float, float, float]:
-    """
-    Reverse the dataset normalisation (see _compute_graph_features) for CSV output.
-    gf shape: (5,)  →  (num_nodes, max_depth, max_width, branching_ratio)
-    """
-    log_n, depth_norm, log_w, br_norm, _leaf = gf.tolist()
-    num_nodes        = float(np.expm1(log_n * 8.0))
-    max_depth        = float(depth_norm * 20.0)
-    max_width        = float(np.expm1(log_w * 8.0))
-    branching_ratio  = float(br_norm * 5.0)
-    return num_nodes, max_depth, max_width, branching_ratio
-
-
 def _predict(
     model:  BiGCN,
     loader: DataLoader,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], List[Tuple[float, float, float, float]]]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], List[int]]:
     """
-    Returns:
-        y_true, y_pred, y_prob, tweet_ids, structural_rows
-        where each structural_row = (num_nodes, max_depth, max_width, branching_ratio)
+    Run inference over *loader* and collect per-sample outputs.
+
+    Returns
+    -------
+    y_true      : int array (N,)
+    y_pred      : int array (N,)
+    y_prob      : float array (N, num_classes)
+    tweet_ids   : list of str, length N
+    num_nodes   : list of int, length N — nodes per graph, from batch.ptr
     """
     model.eval()
-    all_true: List[int]        = []
-    all_pred: List[int]        = []
-    all_prob: List[np.ndarray] = []
-    all_tids: List[str]        = []
-    all_struct: List[Tuple[float, float, float, float]] = []
+    all_true:     List[int]        = []
+    all_pred:     List[int]        = []
+    all_prob:     List[np.ndarray] = []
+    all_tids:     List[str]        = []
+    all_num_nodes: List[int]       = []
 
     with torch.no_grad():
         for batch in loader:
@@ -112,28 +129,32 @@ def _predict(
             all_pred.extend(preds.cpu().tolist())
             all_prob.append(probs.cpu().numpy())
 
-            # tweet_ids — PyG batches string fields as a list
+            # tweet_ids — PyG batches string attributes as a plain list
             tids = batch.tweet_id
             if isinstance(tids, str):
                 tids = [tids]
             all_tids.extend(list(tids))
 
-            # graph_features were stored as (1, 5); after batching → (B, 5)
-            gf = batch.graph_features.cpu().numpy()
-            for row in gf:
-                all_struct.append(_denormalise_graph_features(row))
+            # Per-graph node counts from the batch pointer tensor
+            # batch.ptr shape: (B+1,); diff gives nodes per graph
+            if hasattr(batch, "ptr") and batch.ptr is not None:
+                sizes = (batch.ptr[1:] - batch.ptr[:-1]).cpu().tolist()
+            else:
+                # Fallback: single graph
+                sizes = [int(batch.num_nodes)]
+            all_num_nodes.extend([int(s) for s in sizes])
 
     return (
         np.array(all_true),
         np.array(all_pred),
         np.vstack(all_prob),
         all_tids,
-        all_struct,
+        all_num_nodes,
     )
 
 
 # ---------------------------------------------------------------------------
-# Per-prediction CSV writer
+# Per-prediction CSV
 # ---------------------------------------------------------------------------
 
 def _write_predictions_csv(
@@ -143,7 +164,7 @@ def _write_predictions_csv(
     y_true:     np.ndarray,
     y_pred:     np.ndarray,
     y_prob:     np.ndarray,
-    struct:     List[Tuple[float, float, float, float]],
+    num_nodes:  List[int],
 ) -> Path:
     out = _PRED_DIR / f"predictions_{split}_fold{fold_idx}.csv"
     with open(out, "w", newline="", encoding="utf-8") as fh:
@@ -153,18 +174,17 @@ def _write_predictions_csv(
             "true_label", "true_label_name",
             "pred_label", "pred_label_name",
             "confidence",
-            "num_nodes", "max_depth", "max_width", "branching_ratio",
+            "num_nodes",
         ])
         for i, tid in enumerate(tweet_ids):
             yt, yp = int(y_true[i]), int(y_pred[i])
             conf   = float(y_prob[i, yp])
-            n_n, m_d, m_w, br = struct[i]
             w.writerow([
                 fold_idx, tid,
                 yt, CLASS_NAMES[yt],
                 yp, CLASS_NAMES[yp],
                 f"{conf:.4f}",
-                f"{n_n:.0f}", f"{m_d:.0f}", f"{m_w:.0f}", f"{br:.3f}",
+                num_nodes[i],
             ])
     log.info("Wrote per-prediction CSV: %s", out)
     return out
@@ -177,7 +197,7 @@ def _write_predictions_csv(
 def evaluate_fold(
     dataset:  TwitterRumourDataset,
     fold_idx: int,
-    test_idx: List[int],
+    test_idx: np.ndarray,
     ckpt_dir: Path,
     split:    str,
     verbose:  bool = True,
@@ -185,29 +205,42 @@ def evaluate_fold(
     ckpt_path = ckpt_dir / f"fold{fold_idx}_best.pt"
     if not ckpt_path.exists():
         raise FileNotFoundError(
-            f"Checkpoint not found: {ckpt_path}\nRun gnn/train.py first."
+            f"Checkpoint not found: {ckpt_path}\n"
+            "Run gnn/train.py first."
         )
 
-    ckpt   = _load_checkpoint(ckpt_path)
-    in_dim    = int(ckpt.get("in_dim",    cfg.bigcn.text_embed_dim))
-    graph_dim = int(ckpt.get("graph_dim", 5))
-    model     = BiGCN(in_dim=in_dim, graph_dim=graph_dim).to(DEVICE)
+    ckpt  = _load_checkpoint(ckpt_path)
+
+    # BiGCN draws all hyperparameters from cfg — no constructor args needed.
+    # The checkpoint's in_dim/graph_dim keys are no longer written by train.py,
+    # but if an older checkpoint has them we just ignore them.
+    model = BiGCN().to(DEVICE)
     model.load_state_dict(ckpt["model_state"])
-    log.info("Loaded fold %d checkpoint (epoch %d, val_acc=%.4f)",
-             fold_idx, ckpt.get("epoch", -1), ckpt.get("val_acc", float("nan")))
+    log.info(
+        "Loaded fold %d checkpoint (epoch %d, val_acc=%.4f)",
+        fold_idx,
+        ckpt.get("epoch", -1),
+        ckpt.get("val_acc", float("nan")),
+    )
 
     test_graphs = [dataset.get(i) for i in test_idx]
-    loader = DataLoader(test_graphs, batch_size=cfg.bigcn.batch_size,
-                        shuffle=False, num_workers=0)
+    loader = DataLoader(
+        test_graphs,
+        batch_size=cfg.bigcn.batch_size,
+        shuffle=False,
+        num_workers=0,
+    )
 
-    y_true, y_pred, y_prob, tweet_ids, struct = _predict(model, loader)
+    y_true, y_pred, y_prob, tweet_ids, num_nodes = _predict(model, loader)
 
-    # --- 4-class metrics ---
+    # ── 4-class metrics ──────────────────────────────────────────────────
     acc_4    = float(accuracy_score(y_true, y_pred))
     f1_macro = float(f1_score(y_true, y_pred, average="macro", zero_division=0))
-    f1_per   = f1_score(y_true, y_pred, average=None,
-                        labels=list(range(4)), zero_division=0).tolist()
-    cm       = confusion_matrix(y_true, y_pred, labels=list(range(4)))
+    f1_per   = f1_score(
+        y_true, y_pred, average=None,
+        labels=list(range(4)), zero_division=0,
+    ).tolist()
+    cm = confusion_matrix(y_true, y_pred, labels=list(range(4)))
 
     if verbose:
         log.info("── Fold %d  Test Results ──────────────────────", fold_idx)
@@ -220,12 +253,12 @@ def evaluate_fold(
         for i, row in enumerate(cm):
             log.info("  %-12s %s", CLASS_NAMES[i], "\t".join(map(str, row)))
 
-    # --- binary (true vs false) metrics ---
-    bin_mask = np.array([_BINARY_MAP[y] for y in y_true])
+    # ── Binary (true vs false) metrics ───────────────────────────────────
+    bin_mask = np.array([_BINARY_MAP[int(y)] for y in y_true])
     keep = bin_mask >= 0
     if keep.sum() > 0:
-        bt = (bin_mask[keep] == 1).astype(int)              # 1 = false
-        bp = np.array([_BINARY_MAP[p] for p in y_pred[keep]])
+        bt = (bin_mask[keep] == 1).astype(int)           # 1 = false
+        bp = np.array([_BINARY_MAP[int(p)] for p in y_pred[keep]])
         bp = np.clip(bp, 0, 1)
         acc_bin = float(accuracy_score(bt, bp))
         f1_bin  = float(f1_score(bt, bp, average="binary", zero_division=0))
@@ -236,9 +269,11 @@ def evaluate_fold(
         log.info("Binary (true vs false) accuracy : %.4f", acc_bin)
         log.info("Binary (true vs false) F1       : %.4f", f1_bin)
 
-    # --- write per-prediction CSV ---
-    _write_predictions_csv(fold_idx, split, tweet_ids,
-                           y_true, y_pred, y_prob, struct)
+    # ── Per-prediction CSV ────────────────────────────────────────────────
+    _write_predictions_csv(
+        fold_idx, split, tweet_ids,
+        y_true, y_pred, y_prob, num_nodes,
+    )
 
     return {
         "fold":           fold_idx,
@@ -250,7 +285,7 @@ def evaluate_fold(
         "f1_nonrumor":    f1_per[3],
         "acc_binary":     acc_bin,
         "f1_binary":      f1_bin,
-        "n_test":         len(test_idx),
+        "n_test":         int(len(test_idx)),
     }
 
 
@@ -265,14 +300,12 @@ def run_evaluation(
     n_splits:  int  = 5,
     seed:      int  = 42,
 ) -> List[Dict[str, float]]:
-    if split == "both":
-        ds15 = TwitterRumourDataset("twitter15")
-        ds16 = TwitterRumourDataset("twitter16")
-        dataset = ds15 + ds16
-    else:
-        dataset = TwitterRumourDataset(split)
+    dataset = _load_dataset(split)
 
-    folds    = get_cv_splits(dataset, n_splits=n_splits, seed=seed)
+    # get_kfold_splits is a method on TwitterRumourDataset.
+    # Previously this called the standalone get_cv_splits() function.
+    folds = dataset.get_kfold_splits(n_splits=n_splits, seed=seed)
+
     ckpt_dir = Path(cfg.paths.bigcn_checkpoint).parent / split
 
     fold_indices = list(range(n_splits)) if all_folds else [fold_idx]
@@ -289,7 +322,10 @@ def run_evaluation(
             vals = [r[key] for r in results
                     if not np.isnan(r.get(key, float("nan")))]
             if vals:
-                log.info("  %-20s : %.4f ± %.4f", key, np.mean(vals), np.std(vals))
+                log.info(
+                    "  %-20s : %.4f ± %.4f",
+                    key, np.mean(vals), np.std(vals),
+                )
 
     return results
 
