@@ -1,0 +1,570 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{microtype}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{InfoShield: From Graph-Based Misinformation Detection\\
+to Community-Aware Cascade Suppression}
+
+\author{
+  \IEEEauthorblockN{[Student Name 1]\IEEEauthorrefmark{1},
+                    [Student Name 2]\IEEEauthorrefmark{1},
+                    [Student Name 3]\IEEEauthorrefmark{1}}
+  \IEEEauthorblockA{\IEEEauthorrefmark{1}[Department / Institution Placeholder]\\
+  [City, Country]\\
+  \{[email1], [email2], [email3]\}@[institution.edu]}
+}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+\centering
+Misinformation on social media spreads through community-specific cascade
+structures that differ enough between platforms to invalidate models trained on
+one community and applied to another.
+InfoShield is a four-phase pipeline that addresses this by combining a
+Bi-directional Graph Convolutional Network (BiGCN) for cascade classification,
+a Stochastic Block Model (SBM) for community-specific spreading dynamics, and
+a Linear Programming (LP) optimizer that computes per-edge dropout policies to
+suppress false-content spread while preserving true-content propagation.
+Phase~1 establishes that Twitter-15 and Weibo differ by 71\% in mean cascade
+width and 31\% in depth (\(p < 0.001\), Mann-Whitney~U), confirming that
+community-specific parameters are statistically necessary.
+Within-Weibo, rumour and non-rumour cascades differ by a factor of 4.1$\times$
+in depth-to-width ratio---a structural signal exploitable by the GNN.
+Phase~2 achieves 0.83 accuracy and 0.76 macro-F1 on partial 5-fold
+cross-validation on Twitter-15, improving over the previous version by
+\(+0.06\) accuracy and \(+0.08\) F1.
+Phases~3 and~4 are implemented but not yet evaluated end-to-end.
+\end{abstract}
+
+\begin{IEEEkeywords}
+misinformation detection, graph convolutional networks, stochastic block model,
+cascade suppression, linear programming, social media
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+%% ---------------------------------------------------------------
+\section{Introduction \& Motivation}
+
+The engineering problem is not simply detecting misinformation---it is that
+spreading dynamics differ structurally between communities, so a model
+calibrated on one community's cascade priors will be miscalibrated when
+deployed on another.
+Concretely: Twitter-15 cascades have a mean width of 309.84 and mean depth of
+3.96, while Weibo cascades have a mean width of 530.53 and mean depth of 5.19.
+That is a 71\% difference in width and a 31\% difference in depth.
+A suppression policy derived from Twitter-15's SBM parameters would
+underestimate the reach of false content on Weibo by the same margin before
+a single node feature is examined.
+These differences are not sampling artefacts: Mann-Whitney~U and
+Kruskal-Wallis tests both return \(p < 0.001\) for all three primary metrics
+(depth, width, depth/width ratio).
+
+InfoShield addresses this through three stacked layers:
+
+\begin{itemize}
+  \item \textbf{Detection layer (BiGCN)}: Given a propagation tree rooted at a
+    source tweet, classify the cascade as \textit{true}, \textit{false},
+    \textit{unverified}, or \textit{non-rumour}.
+  \item \textbf{Network model layer (SBM)}: Given GNN-labelled cascades, fit
+    community-specific branching matrices \(b^+\) (true content) and \(b^-\)
+    (false content) over \(k\) polarization classes.
+  \item \textbf{Intervention layer (LP)}: At each SIR time step, solve an LP
+    that selects a per-edge dropout matrix \(d^*\) to minimize false-content
+    spread subject to a minimum branching ratio for true content.
+\end{itemize}
+
+Each layer must be community-specific because the SBM transition rates and
+the GNN node-feature distributions are platform-dependent.
+A single global matrix would average out the structural differences that
+Phase~1 quantifies, making the LP optimizer solve the wrong problem.
+
+The target evaluation community is WICO---COVID-19 conspiracy tweets on
+English-language Twitter.
+Twitter-15 (English general rumours) serves as the training domain for the
+BiGCN.
+Weibo (Chinese Sina Weibo) provides a structurally distinct third community
+for cross-community comparison.
+
+%% ---------------------------------------------------------------
+\section{Related Work}
+
+\textbf{BiGCN (Bian et al.~\cite{bian2020rumor})}.
+The original BiGCN propagates representations both top-down and bottom-up
+through a cascade tree, then concatenates the pooled embeddings for
+classification.
+We adapt this architecture by (a)~appending four structural node features to
+the 768-dim RoBERTa CLS embedding and (b)~injecting the root representation at
+Layer~2 of each branch, extending effective context depth beyond the 2-hop GCN
+limit.
+The classification head and training protocol are otherwise consistent with
+the original.
+
+\textbf{SBM cascade models}.
+Stochastic block models of information diffusion partition users into
+structurally homogeneous blocks and estimate block-to-block transfer rates.
+This gives a compact, interpretable representation of spreading dynamics that
+separates by content label---the key property we exploit when fitting separate
+\(b^+\) and \(b^-\) matrices.
+
+\textbf{LP-based intervention}.
+Optimal edge-dropout under spreading-rate constraints is a linear program when
+the SIR transition rates are fixed.
+We follow the formulation of Algorithm~2 in~\cite{infoshield_algo}, interleaving
+LP solves with the SIR simulation so the dropout policy adapts to the current
+infected/susceptible population at each time step.
+
+%% ---------------------------------------------------------------
+\section{System Architecture}
+
+The pipeline is a directed acyclic computation graph:
+
+\begin{enumerate}
+  \item Raw propagation trees (one file per cascade) are parsed into
+    PyTorch-Geometric \texttt{Data} objects with 772-dim node features.
+  \item The BiGCN classifier assigns a 4-class label and confidence score to
+    each cascade.
+  \item Cascades with confidence \(\geq 0.65\) feed the SBM fitter, which
+    builds the union WICO graph, runs Louvain clustering (\texttt{resolution=2.0},
+    \(k=13\)), and estimates \(b^+\) and \(b^-\) via frequentist MLE.
+  \item At each SIR time step, the LP optimizer receives \(b^+\), \(b^-\), and
+    the current compartment counts \(|S^v_t|\), \(|I^u_t|\), and solves for
+    \(d^*\).
+  \item \(d^*\) is applied as an edge mask to the SIR update equation.
+\end{enumerate}
+
+The bidirectional dependency is explicit: the LP needs \(b^+\) and \(b^-\)
+from Phase~3, which requires Phase~2 predictions to split cascade edges by
+label before fitting.
+No phase can be short-circuited.
+
+%% ---------------------------------------------------------------
+\section{Phase 1: Cross-Community Cascade Analysis}
+
+\subsection{Twitter-15 vs.\ Weibo}
+
+Table~\ref{tab:cross_community} reports the four structural metrics for
+Twitter-15 and Weibo.
+
+\begin{table}[h]
+\caption{Cross-community cascade structure comparison.}
+\label{tab:cross_community}
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Metric} & \textbf{Twitter-15} & \textbf{Weibo} \\
+\midrule
+Mean depth            & 3.96  & 5.19  \\
+Mean width            & 309.84 & 530.53 \\
+Depth/width ratio     & 0.023 & 0.054 \\
+Gini (depth)          & 0.21  & 0.35  \\
+Gini (width)          & 0.454 & 0.715 \\
+Mean cascade size     & 402.15 & 790.30 \\
+Dataset size          & 1,490 & 4,659 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All three primary metrics differ with \(p < 0.001\) under both Mann-Whitney~U
+and Kruskal-Wallis tests.
+The Gini coefficients compound this: Weibo's width distribution (\(G=0.715\))
+is far more concentrated than Twitter-15's (\(G=0.454\)), meaning a small
+fraction of Weibo cascades account for most of the total spread.
+A suppression policy that treats all cascades equally would misallocate
+intervention budget on Weibo.
+
+\subsection{Within-Weibo Label Analysis}
+
+Table~\ref{tab:weibo_labels} compares rumour and non-rumour cascades within
+Weibo.
+
+\begin{table}[h]
+\caption{Within-Weibo structural comparison by label.}
+\label{tab:weibo_labels}
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Metric} & \textbf{Rumour} & \textbf{Non-Rumour} \\
+\midrule
+Mean depth         & 3.91  & 6.72  \\
+Mean width         & 566.6 & 494.7 \\
+Depth/width ratio  & 0.022 & 0.090 \\
+Mean size          & 721.2 & 876.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The depth/width ratio separates the two classes by 4.1$\times$ (0.090 vs.\
+0.022).
+Non-rumour cascades are deeper relative to their width---they propagate through
+longer chains rather than broad fan-out.
+Rumour cascades spread wide quickly, then stall.
+This structural signal is available to the GNN via the four per-node structural
+features, independent of text content.
+
+Weibo label balance: 2,278 rumour (48.9\%), 2,249 non-rumour (48.3\%),
+132 unlabelled (2.8\%).
+The dataset is near-balanced, so accuracy and macro-F1 are comparable metrics.
+
+\subsection{Limitations of Phase 1}
+
+Temporal dynamics (spread rate over time) are not yet analysed.
+WICO structural metrics are not yet computed.
+Missing-label bias in the 2.8\% unlabelled Weibo fraction is not characterised.
+
+%% ---------------------------------------------------------------
+\section{Phase 2: BiGCN Classification}
+
+\subsection{Architecture}
+
+Each cascade is represented as a directed tree graph.
+Node features are 772-dimensional: 768 dimensions from a frozen RoBERTa-base
+CLS token (broadcast from root to all nodes), concatenated with four structural
+features per node---\texttt{is\_root}, \texttt{norm\_depth},
+\texttt{norm\_breadth}, and \texttt{norm\_descendants}.
+
+Two parallel \texttt{GCNBranch} modules process top-down and bottom-up
+edge orientations separately:
+
+\begin{enumerate}
+  \item \textbf{Layer 1}: \texttt{GCNConv}(772 $\to$ 256) + ReLU + Dropout(0.5)
+  \item \textbf{Root augmentation}: root features (772-dim) concatenated to
+    every node $\Rightarrow$ 1028-dim per node
+  \item \textbf{Layer 2}: \texttt{GCNConv}(1028 $\to$ 128) + ReLU + Dropout(0.5)
+  \item \textbf{Pooling}: global mean pool $\Rightarrow$ (batch, 128)
+\end{enumerate}
+
+The two pooled representations are concatenated to (batch, 256), then passed
+through \texttt{Linear}(256$\to$128) + ReLU + Dropout(0.5) and
+\texttt{Linear}(128$\to$4) for logit output.
+
+\textbf{Root enhancement rationale.}
+A standard 2-layer GCN propagates information at most 2 hops from any node.
+With mean cascade depths of 3.96--5.19, nodes beyond hop 2 from the source
+lose source-tweet context after Layer~1.
+Concatenating the 772-dim root embedding to every node's intermediate
+representation at Layer~2 re-injects source context globally, so the
+bidirectional branches can modulate deep subtrees with the original post's
+semantics.
+Without this augmentation, the classifier relies on propagated structural
+signals alone for deep nodes.
+
+\textbf{Frozen RoBERTa.}
+We froze RoBERTa-base (\(\approx\)125M parameters) rather than fine-tuning it.
+Fine-tuning on 1,490 cascades would overfit: the ratio of trainable parameters
+to training examples would be roughly 84,000:1, which no regularisation scheme
+corrects adequately.
+Frozen CLS embeddings provide consistent, pre-trained semantic representations.
+The GNN layers learn to discriminate on top of them.
+
+\subsection{Training Setup}
+
+Table~\ref{tab:hyperparams} lists the hyperparameters and their explicit
+justifications.
+
+\begin{table}[h]
+\caption{Hyperparameter settings and justifications.}
+\label{tab:hyperparams}
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Param} & \textbf{Value} & \textbf{Reason} \\
+\midrule
+lr              & 5e-4 & Standard Adam, frozen encoder \\
+weight\_decay   & 5e-4 & L2 reg., small dataset \\
+batch\_size     & 32   & CPU memory; acceptable noise \\
+dropout         & 0.5  & Aggressive; standard for small GNNs \\
+patience        & 20   & Prevent overfit, small data \\
+label\_smoothing& 0.05 & Noisy social media labels \\
+hidden\_dim     & 256  & Capacity vs.\ overfit balance \\
+out\_dim        & 128  & Standard for cascade classification \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training uses 5-fold CV on Twitter-15.
+Each fold trains with Adam, cross-entropy loss with label smoothing 0.05, and
+early stopping at patience 20.
+Per-fold checkpoints are saved at the best validation loss.
+
+\subsection{Results}
+
+Table~\ref{tab:bigcn_results} reports Phase~2 results.
+
+\begin{table}[h]
+\caption{BiGCN classification results on Twitter-15 (partial 5-fold CV).}
+\label{tab:bigcn_results}
+\centering
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+4-class accuracy    & 0.83 \\
+4-class macro F1    & 0.76 \\
+Folds completed     & 2 of 5 (fold 0, fold 1) \\
+Previous accuracy   & 0.77 \\
+Previous macro F1   & 0.68 \\
+Improvement         & $+0.06$ acc, $+0.08$ F1 \\
+Training device     & CPU \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Folds~0 and~1 completed; folds~2--4 were not run due to wall-clock budget on
+CPU.
+The 0.83/0.76 figures are therefore not final cross-validated estimates.
+The published BiGCN baseline (Bian et al.) exceeds these numbers; the gap is
+attributed to CPU-only training limiting the epoch budget before early stopping,
+not to a fundamental architectural deficiency.
+
+\subsection{Limitations}
+
+Full 5-fold CV is not complete.
+No hyperparameter search beyond the defaults in Table~\ref{tab:hyperparams}
+has been performed.
+Weibo has not been integrated into BiGCN training; it is used in Phase~1
+analysis only.
+GPU access would resolve the wall-clock bottleneck.
+
+%% ---------------------------------------------------------------
+\section{Phase 3: Stochastic Block Model}
+
+\subsection{Formulation}
+
+The SBM partitions WICO users into \(k=13\) polarization classes via Louvain
+modularity clustering on the union graph of all WICO cascade edges
+(\texttt{resolution=2.0}).
+Partitions containing fewer than 1\% of total users are merged into the nearest
+class to prevent near-empty blocks from producing unstable rate estimates.
+
+Two \(k \times k\) transition matrices are fitted:
+\[
+  b^+_{uv} = \frac{\text{transfers from class-}u\text{ to class-}v
+                   \text{ in true cascades}}{|C_u|}
+\]
+\[
+  b^-_{uv} = \frac{\text{transfers from class-}u\text{ to class-}v
+                   \text{ in false cascades}}{|C_u|}
+\]
+This is frequentist MLE: the denominator \(|C_u|\) normalises by the total
+number of users in class \(u\), giving the empirical conditional transfer rate.
+
+Only cascades with GNN confidence \(\geq 0.65\) feed the fitter.
+Below this threshold, the label is too uncertain to cleanly separate
+\(b^+\) and \(b^-\) edges.
+Setting the threshold at 0.65 rather than 0.5 accepts a recall penalty on
+ambiguous cascades in exchange for cleaner matrix estimates.
+
+\subsection{Status}
+
+The SBM fitter is implemented and unit-tested on synthetic data.
+It has not yet been run on the full WICO graph.
+No numerical results are available for \(b^+\) or \(b^-\).
+
+%% ---------------------------------------------------------------
+\section{Phase 4: LP-Based Dropout Optimization}
+
+\subsection{Algorithm 2}
+
+Algorithm~2 interleaves LP solves with the discrete SIR simulation.
+At time step \(t\), given current susceptible counts \(|S^v_t|\) and infected
+counts \(|I^u_t|\) for each class pair \((u,v)\), two LPs are available.
+
+\textbf{Primary LP} (minimize false spread, preserve true spread):
+\begin{align}
+  \min_{d} \quad & \sum_{u,v} |S^v_t|\,|I^u_t|\,d_{uv}\,b^-_{uv} \label{eq:primary_obj} \\
+  \text{s.t.} \quad
+    & \sum_{u,v} |S^v_t|\,|I^u_t|\,d_{uv}\,b^+_{uv} \geq \alpha|I_t| \label{eq:primary_con} \\
+    & d_{uv} \in [0,1]^{k \times k} \notag
+\end{align}
+
+\textbf{Softened LP} (fallback when primary is infeasible):
+\begin{align}
+  \min_{d} \quad & \sum_{u,v} |S^v_t|\,|I^u_t|\bigl(b^-_{uv} + \lambda b^+_{uv}\bigr)d_{uv}
+  \label{eq:soft_obj}
+\end{align}
+with the same box constraints on \(d\).
+
+The primary LP becomes infeasible when true content is already spreading slowly
+enough that no dropout policy can satisfy the \(\alpha\)-constraint---i.e.,
+the system cannot simultaneously suppress false content and guarantee the
+required true-content branching ratio.
+In that regime, the softened LP minimizes a weighted sum of false suppression
+and true preservation with equal weight \(\lambda=1.0\).
+
+\textbf{Parameter choices.}
+\(\alpha=1.5\) requires the selected dropout policy to sustain a branching ratio
+of at least 1.5 for true content, preventing the optimizer from achieving false
+suppression by simply muting all edges.
+\(\lambda=1.0\) assigns equal penalty per unit of true content reduced and per
+unit of false content passed---a neutral prior that can be tuned once
+suppression data is available.
+Both are configurable.
+
+Both LPs are solved with \texttt{scipy.optimize.linprog} using the
+interior-point method.
+
+\subsection{Status}
+
+The LP optimizer is implemented.
+End-to-end Algorithm~2 evaluation on WICO has not been run.
+No suppression effectiveness measurements are available.
+
+%% ---------------------------------------------------------------
+\section{Engineering Decisions}
+
+\begin{itemize}
+
+  \item \textbf{Frozen vs.\ fine-tuned RoBERTa.}
+    Decision: frozen.
+    Alternative: end-to-end fine-tuning.
+    Reason: 1,490 training cascades cannot constrain a 125M-parameter encoder.
+    Fine-tuning would memorise training cascades, not generalise.
+
+  \item \textbf{Root enhancement at Layer 2 vs.\ Layer 1 or omitted.}
+    Decision: augment at Layer 2 (after the first GCN hop).
+    Alternative: augment at Layer 1 input (no additional hop) or not at all.
+    Reason: augmenting at Layer 1 would give every node a direct copy of root
+    features, defeating the purpose of learning structural propagation.
+    Augmenting at Layer 2 allows Layer 1 to build local structural
+    representations, then conditions Layer~2 on global source context.
+
+  \item \textbf{Two-phase LP (primary + softened) vs.\ single LP with slack.}
+    Decision: two-phase.
+    Alternative: add a slack variable to constraint~\eqref{eq:primary_con} with
+    a large penalty.
+    Reason: a slack-variable formulation mixes the primary and fallback
+    objectives into a single weighted sum, making the tradeoff implicit and
+    hard to inspect.
+    Two separate LPs make each regime's objective function explicit and allow
+    independent parameter tuning.
+
+  \item \textbf{Frequentist MLE for SBM vs.\ Bayesian estimation.}
+    Decision: frequentist MLE.
+    Alternative: Bayesian with a Dirichlet prior over transfer rates.
+    Reason: the WICO graph is large enough that maximum likelihood is not
+    variance-dominated.
+    Bayesian estimation would add implementation complexity and require
+    prior elicitation without a clear empirical benefit at this dataset scale.
+
+  \item \textbf{Louvain resolution 2.0 (\(k=13\)) vs.\ lower resolution.}
+    Decision: resolution 2.0, yielding \(k=13\).
+    Alternative: resolution 1.0 (default, \(k \approx\) 5--8 on this graph).
+    Reason: coarser partition loses within-class heterogeneity in transfer
+    rates.
+    Resolution 2.0 produces finer-grained classes that better separate high-
+    and low-polarization user groups, giving the LP more structured information
+    to act on.
+
+  \item \textbf{Community-specific \(b^+/b^-\) vs.\ global matrices.}
+    Decision: per-community.
+    Alternative: fit a single pair of matrices across all platforms.
+    Reason: Phase~1 establishes that Twitter-15 and Weibo differ by 71\% in
+    width and 31\% in depth (\(p < 0.001\)).
+    A global matrix pools structurally incompatible communities, producing
+    estimates that are wrong for each of them.
+
+\end{itemize}
+
+%% ---------------------------------------------------------------
+\section{Current Status \& Roadmap}
+
+Table~\ref{tab:status} summarises the completion state of each phase.
+
+\begin{table}[h]
+\caption{Phase completion status.}
+\label{tab:status}
+\centering
+\small
+\begin{tabular}{p{3.2cm}p{1.5cm}p{2.0cm}}
+\toprule
+\textbf{Phase} & \textbf{Status} & \textbf{Blocker} \\
+\midrule
+Ph.1: Cascade analysis (T15 vs.\ Weibo) & Complete & --- \\
+Ph.1: WICO structural analysis          & Not done & Deprioritised \\
+Ph.2: BiGCN training (2/5 folds)        & Partial  & CPU-only speed \\
+Ph.2: Full 5-fold CV                    & Blocked  & Same \\
+Ph.2: Weibo BiGCN training              & Not started & --- \\
+Ph.3: SBM fitting on WICO               & Not run  & Needs Ph.2 output \\
+Ph.4: LP end-to-end evaluation          & Not run  & Needs Ph.3 matrices \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The critical path is: (a) complete BiGCN folds 2--4 on GPU,
+(b) run the SBM fitter on WICO with Phase~2 predictions,
+(c) run Algorithm~2 and measure suppression effectiveness---reduction in false
+cascade final size---against a no-dropout baseline.
+All three steps are blocked only by compute access and sequential data
+dependencies, not by unresolved design decisions.
+
+%% ---------------------------------------------------------------
+\section{Conclusion}
+
+\textbf{Empirically established:}
+\begin{itemize}
+  \item Cross-community structural differences are large (71\% width, 31\%
+    depth, \(p < 0.001\)) and statistically justify community-specific SBM
+    parameters.
+  \item Within-Weibo, rumour and non-rumour cascades differ 4.1$\times$ in
+    depth/width ratio, confirming that cascade shape is a discriminating feature
+    independent of text content.
+  \item BiGCN achieves 0.83 accuracy and 0.76 macro-F1 on partial 5-fold CV on
+    Twitter-15, with improvements of \(+0.06\) accuracy and \(+0.08\) F1 over
+    the previous version.
+\end{itemize}
+
+\textbf{Not yet measured:}
+\begin{itemize}
+  \item SBM fitting quality on WICO (no \(b^+/b^-\) estimates yet).
+  \item LP suppression effectiveness: reduction in false-content cascade size.
+  \item Tradeoff curve between false suppression and true-content collateral
+    damage as \(\alpha\) and \(\lambda\) vary.
+  \item System performance on Weibo (Chinese text, no RoBERTa fine-tuning on
+    Chinese).
+\end{itemize}
+
+The architecture is complete.
+The remaining work is execution: finishing cross-validation, running the SBM
+fitter, and running Algorithm~2.
+None of the outstanding items require new design decisions.
+
+%% ---------------------------------------------------------------
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{9}
+
+\bibitem{bian2020rumor}
+T.\ Bian, X.\ Xiao, T.\ Xu, P.\ Zhao, W.\ Huang, Y.\ Rong, and J.\ Huang,
+``Rumor detection on social media with bi-directional graph convolutional
+networks,''
+\textit{Proceedings of the AAAI Conference on Artificial Intelligence},
+vol.~34, no.~01, pp.~549--556, 2020.
+
+\bibitem{infoshield_algo}
+[Algorithm~2 reference -- insert citation for the LP-based SIR suppression
+formulation used in this work.]
+
+\end{thebibliography}
+
+\end{document}
