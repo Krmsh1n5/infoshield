@@ -1,0 +1,30 @@
+# Scientific Consensus — COVID-19, 5G, and Related Misinformation Topics
+# Sources: WHO, Nature, Lancet, IEEE, ICNIRP
+# Last updated: 2024
+
+## 5G Technology — Scientific Facts
+5G is a radio frequency technology operating in frequency bands between 600 MHz and 86 GHz, depending on implementation. All commercially deployed 5G frequencies are non-ionising radiation, meaning they lack the energy to break chemical bonds or damage DNA.
+The ICNIRP (International Commission on Non-Ionizing Radiation Protection) 2020 guidelines confirm that 5G exposure at regulated power levels poses no established health risk.
+IEEE Spectrum peer-reviewed analyses confirm: radio waves cannot carry, create, or activate biological pathogens. The physical mechanism required for 5G to "spread" a virus does not exist.
+Studies published in The Lancet and Nature Medicine found no epidemiological correlation between 5G rollout geography and COVID-19 severity or spread rates.
+
+## COVID-19 Origins
+The scientific consensus, reflected in studies published in Nature Medicine (Andersen et al., 2020) and Cell (Holmes et al., 2021), supports zoonotic (animal-to-human) origin of SARS-CoV-2, consistent with known mechanisms of coronavirus evolution.
+No peer-reviewed study has demonstrated credible evidence that SARS-CoV-2 was engineered or deliberately released.
+
+## mRNA Vaccines — Mechanism
+mRNA vaccine technology was developed over three decades. The mRNA in vaccines is a single-stranded molecule that is degraded by normal cellular enzymes within 72 hours of injection; it never reaches the cell nucleus and cannot interact with chromosomal DNA.
+The spike protein produced following mRNA vaccination is identical in key epitopes to the SARS-CoV-2 surface protein, enabling immune recognition. Clinical trials (NEJM, 2020) demonstrated >90% efficacy against severe disease.
+No mRNA vaccine contains: graphene oxide (disproved by independent spectrographic analysis), magnetic nanoparticles, or electronic components of any kind.
+
+## Herd Immunity Thresholds
+For SARS-CoV-2 (original strain), modelling published in Science (Britton et al., 2020) estimated herd immunity threshold at 60–70% of population. Variants with higher transmissibility require higher thresholds.
+Natural infection provides variable and waning immunity; vaccine-induced immunity provides more consistent and measurable protection.
+
+## Disinfectants and COVID-19
+Ingesting or injecting disinfectants (bleach, isopropyl alcohol, hydrogen peroxide) does not treat viral infection and causes severe chemical burns to the gastrointestinal tract, liver, and kidneys. No clinical evidence supports such use.
+
+## Key Scientific Portals
+WHO Science in 5 Minutes: https://www.who.int/news-room/feature-stories
+PubMed COVID-19 research: https://pubmed.ncbi.nlm.nih.gov/?term=COVID-19
+ICNIRP Guidelines: https://www.icnirp.org/en/frequencies/high-frequency/index.html

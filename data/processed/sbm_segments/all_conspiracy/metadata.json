@@ -1,0 +1,14 @@
+{
+  "segment": "all_conspiracy",
+  "false_dirs": [
+    "5G_Conspiracy_Graphs",
+    "Other_Graphs"
+  ],
+  "true_dirs": [
+    "Non_Conspiracy_Graphs"
+  ],
+  "description": "All conspiracy cascades combined (equivalent to the global SBM). Used as the population-average baseline.",
+  "n_true_cascades": 2490,
+  "n_false_cascades": 1002,
+  "k": 3
+}

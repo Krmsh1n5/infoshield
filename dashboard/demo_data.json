@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "dataset": "WICO Graph",
+    "source": "Simula Research Laboratory",
+    "total_cascades": 2174,
+    "false_cascades": 1534,
+    "true_cascades": 640,
+    "class_sizes": [55057, 38055, 12572, 8551],
+    "class_names": ["Mainstream", "Distributed", "Fringe", "Specialist"]
+  },
+  "live_cascades": [
+    {
+      "id": "wico-5g-0112",
+      "source": "@az_health_info",
+      "platform": "instagram",
+      "platform_live": true,
+      "label": "false",
+      "binary_label": "false",
+      "confidence": 0.91,
+      "pattern": "Wide Burst",
+      "pattern_desc": "False content spreading cross-community — off-diagonal SBM dominant",
+      "nodes": 54,
+      "edges": 71,
+      "started": "14:23:05",
+      "elapsed_min": 12,
+      "claim_az": "Yeni 5G qüllələri Bakıda xərçəng riskini 3 dəfə artırır — mütəxəssislər susur!",
+      "claim_en": "New 5G towers in Baku increase cancer risk by 3x — experts are being silenced!",
+      "topic": "health",
+      "community_spread": [8, 22, 14, 10],
+      "rebuttal_az": "5G texnologiyası Ümumdünya Səhiyyə Təşkilatı (ÜST) tərəfindən hərtərəfli yoxlanılmış və insan sağlamlığı üçün təhlükəsiz hesab edilmişdir. Radiodalğalar xərçəng törətmir.",
+      "rebuttal_en": "5G technology has been thoroughly reviewed by the WHO and deemed safe. Radio waves at these frequencies do not cause cancer. The Ministry of Digital Development declares these claims unfounded.",
+      "sources": ["who.int/radiation/5g", "mincom.gov.az/5g"],
+      "validator": {"name": "Dr. Leyla Məmmədova", "followers": "18.4K", "handle": "@drleyla_med", "verified": true}
+    },
+    {
+      "id": "wico-vacc-0089",
+      "source": "@health_watch_az",
+      "platform": "telegram",
+      "platform_live": false,
+      "label": "false",
+      "binary_label": "false",
+      "confidence": 0.84,
+      "pattern": "Deep Chain",
+      "pattern_desc": "Spreading through a narrow chain of high-follower accounts",
+      "nodes": 38,
+      "edges": 41,
+      "started": "13:51:22",
+      "elapsed_min": 44,
+      "claim_az": "COVID peyvəndi DNT-ni dəyişdirir — sübut edilib",
+      "claim_en": "COVID vaccine permanently alters human DNA — scientists confirm",
+      "topic": "vaccine",
+      "community_spread": [4, 18, 10, 6],
+      "rebuttal_az": "mRNA peyvəndləri insan DNT-sinə daxil olmur. Bu iddia tibbi cəhətdən əsassızdır.",
+      "rebuttal_en": "mRNA vaccines do not enter human DNA. They are degraded within days of injection.",
+      "sources": ["cdc.gov/vaccines", "who.int/vaccines"],
+      "validator": {"name": "Prof. Rauf Əliyev", "followers": "12.1K", "handle": "@profraauf", "verified": true}
+    },
+    {
+      "id": "wico-true-0203",
+      "source": "@aztv_official",
+      "platform": "telegram",
+      "platform_live": false,
+      "label": "true",
+      "binary_label": "true",
+      "confidence": 0.93,
+      "pattern": "Slow Diffusion",
+      "pattern_desc": "True content spreading steadily within communities — diagonal SBM dominant",
+      "nodes": 49,
+      "edges": 58,
+      "started": "11:55:12",
+      "elapsed_min": 147,
+      "claim_az": "Nazirlər Kabineti 2025-ci il üçün yeni təhsil islahatlarını açıqladı",
+      "claim_en": "Cabinet of Ministers announced new education reforms for 2025",
+      "topic": "government",
+      "community_spread": [28, 12, 4, 5],
+      "rebuttal_az": null,
+      "rebuttal_en": null,
+      "sources": [],
+      "validator": null
+    }
+  ],
+  "simulation_runs": {
+    "control": {
+      "label": "No Dropout (Control)",
+      "alpha": null,
+      "r_inf_true": 49,
+      "r_inf_false": 54,
+      "steps": [
+        {"step":0,"d_star":[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],"total_reached":8,"lp_type":"control","new_infected":8},
+        {"step":1,"d_star":[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],"total_reached":22,"lp_type":"control","new_infected":14},
+        {"step":2,"d_star":[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],"total_reached":38,"lp_type":"control","new_infected":16},
+        {"step":3,"d_star":[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],"total_reached":49,"lp_type":"control","new_infected":11}
+      ]
+    },
+    "alpha_1_5": {
+      "label": "Algorithm 2 (α=1.5)",
+      "alpha": 1.5,
+      "r_inf_true": 43,
+      "r_inf_false": 38,
+      "steps": [
+        {"step":0,"d_star":[[0.92,0.41,0.18,0.61],[0.38,0.88,0.22,0.51],[0.15,0.19,0.81,0.28],[0.55,0.44,0.31,0.91]],"total_reached":8,"lp_type":"hard","new_infected":8},
+        {"step":1,"d_star":[[0.89,0.35,0.12,0.54],[0.31,0.91,0.18,0.44],[0.11,0.14,0.87,0.21],[0.48,0.38,0.24,0.94]],"total_reached":19,"lp_type":"hard","new_infected":11},
+        {"step":2,"d_star":[[0.94,0.28,0.08,0.47],[0.24,0.93,0.13,0.36],[0.07,0.10,0.91,0.15],[0.41,0.30,0.18,0.96]],"total_reached":29,"lp_type":"softened","new_infected":10},
+        {"step":3,"d_star":[[0.96,0.21,0.05,0.39],[0.17,0.95,0.09,0.28],[0.04,0.07,0.94,0.10],[0.33,0.22,0.12,0.97]],"total_reached":38,"lp_type":"softened","new_infected":9}
+      ]
+    }
+  }
+}

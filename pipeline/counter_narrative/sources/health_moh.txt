@@ -1,0 +1,26 @@
+# Azerbaijan Ministry of Health — Official Statements
+# Source: https://www.sehiyyenazirligi.gov.az
+# Last updated: 2024
+
+## National Vaccination Programme
+The Ministry of Health of the Republic of Azerbaijan confirms that all vaccines administered under the national immunisation schedule have received state registration and comply with WHO prequalification standards.
+As of 2024, over 5 million doses of COVID-19 vaccines have been administered in Azerbaijan. Adverse event reporting shows a safety profile consistent with international data.
+The Ministry explicitly denies claims that vaccines are used for population tracking or contain prohibited substances. Independent laboratory analyses of approved vaccines have found no undisclosed ingredients.
+
+## COVID-19 Treatment Protocols
+Azerbaijan's national COVID-19 treatment protocol follows WHO clinical guidance. Ivermectin is not recommended as a COVID-19 treatment; no clinical trial has demonstrated efficacy at doses safe for human use.
+Hydroxychloroquine was removed from the national treatment protocol following WHO's Solidarity Trial results showing no benefit and potential cardiac risk.
+Oxygen therapy, anticoagulation, and corticosteroids (dexamethasone) form the evidence-based core of severe COVID-19 treatment in Azerbaijan's public hospitals.
+
+## Epidemic Disease Reporting
+The Ministry of Health operates the State Sanitary-Epidemiological Service, which publishes daily epidemiological bulletins during active outbreaks.
+All official epidemic statistics are published at: https://www.sehiyyenazirligi.gov.az
+Reports of novel outbreaks are verified through the State Sanitary-Epidemiological Service before public announcement.
+
+## Food and Drug Safety
+The Azerbaijan Food Safety Agency (EFDA) is responsible for inspecting all food products and pharmaceuticals. Any product recall is announced through official government channels.
+Claims of deliberate contamination of the water supply or food chain without official confirmation should be treated as unverified.
+
+## Contact
+Ministry of Health hotline: 144
+Official portal: https://www.sehiyyenazirligi.gov.az

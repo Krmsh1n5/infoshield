@@ -1,0 +1,2415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InfoShield — Live Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   INFOSHIELD DASHBOARD — Presentation-friendly redesign
+   Theme: Clean light, crisp editorial, large readable type
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:       #f4f6f9;
+  --surface:  #ffffff;
+  --surface2: #f0f3f7;
+  --border:   #dde2ea;
+  --border2:  #e8ecf1;
+
+  --ink:      #111827;
+  --ink2:     #4b5563;
+  --ink3:     #9ca3af;
+
+  --blue:     #2563eb;
+  --blue-bg:  rgba(37,99,235,0.07);
+  --green:    #16a34a;
+  --green-bg: rgba(22,163,74,0.07);
+  --red:      #dc2626;
+  --red-bg:   rgba(220,38,38,0.07);
+  --amber:    #d97706;
+  --amber-bg: rgba(217,119,6,0.07);
+  --purple:   #7c3aed;
+
+  --font:     'DM Sans', sans-serif;
+  --mono:     'DM Mono', monospace;
+  --display:  'Bebas Neue', cursive;
+
+  --radius:   10px;
+  --radius-sm: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── Layout ─────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-badge {
+  background: var(--blue);
+  color: #ffffff;
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 1px;
+  padding: 4px 10px 2px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.3px;
+}
+.brand-sub {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 1px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+  max-width: 600px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.status-badge .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-badge.live { background: var(--green-bg); border-color: rgba(63,185,80,0.3); color: var(--green); }
+.status-badge.live .dot { background: var(--green); animation: pulse 2s infinite; }
+.status-badge.alert { background: var(--red-bg); border-color: rgba(248,81,73,0.3); color: var(--red); }
+.status-badge.alert .dot { background: var(--red); animation: pulse 0.7s infinite; }
+.status-badge.demo { background: var(--amber-bg); border-color: rgba(227,179,65,0.3); color: var(--amber); }
+.status-badge.demo .dot { background: var(--amber); }
+
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.8); }
+}
+
+#clock {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink2);
+  flex-shrink: 0;
+}
+
+/* ── Tab navigation ──────────────────────────────────────────── */
+#tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+  top: 1px;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.tab-icon { font-size: 15px; }
+.tab-num {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--red-bg);
+  color: var(--red);
+  font-weight: 600;
+}
+.tab-coming {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+/* ── Content area ────────────────────────────────────────────── */
+#content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 24px;
+  display: none;
+}
+.view.active { display: block; }
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.card + .card { margin-top: 16px; }
+
+.card-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.card-desc {
+  font-size: 14px;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+
+/* ── Grid helpers ────────────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 1 — LIVE FEED (Instagram active, others teased)
+   ════════════════════════════════════════════════════════════════ */
+
+.platform-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.platform-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.platform-icon.instagram { background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.platform-icon.telegram  { background: #229ed9; }
+.platform-icon.whatsapp  { background: #25d366; }
+.platform-icon.facebook  { background: #1877f2; }
+
+.platform-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.platform-sub {
+  font-size: 14px;
+  color: var(--ink2);
+  margin-top: 2px;
+}
+
+.live-chip {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.live-chip.live { background: var(--green-bg); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+.live-chip.live .dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite; }
+.live-chip.demo-chip { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(227,179,65,0.3); font-size:11px;}
+
+/* Cascade cards */
+.cascade-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.cascade-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--red);
+}
+.cascade-card.true::before { background: var(--green); }
+.cascade-card:hover { border-color: var(--blue); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.cascade-card.selected { border-color: var(--blue); background: rgba(88,166,255,0.05); }
+
+.cascade-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cascade-verdict {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.cascade-verdict.false { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.cascade-verdict.true  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+
+.cascade-claim {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  flex: 1;
+}
+.cascade-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.meta-chip {
+  font-size: 12px;
+  color: var(--ink2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.meta-chip strong { color: var(--ink); }
+
+.confidence-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.conf-label { font-size: 12px; color: var(--ink2); white-space: nowrap; }
+.conf-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.conf-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--amber), var(--red));
+  transition: width 0.5s ease;
+}
+.conf-fill.green { background: linear-gradient(90deg, var(--green), #58a6ff); }
+.conf-pct { font-size: 14px; font-weight: 700; color: var(--amber); width: 40px; text-align: right; }
+.conf-pct.green { color: var(--green); }
+
+/* Other platforms — "coming soon" tease */
+.platform-tease {
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 0.65;
+}
+.tease-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.tease-text .tease-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.tease-text .tease-sub  { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+.tease-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 2 — GRAPH (D3 cascade viz)
+   ════════════════════════════════════════════════════════════════ */
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  height: calc(100vh - 130px);
+}
+
+.graph-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.graph-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.graph-panel-header h3 { font-size: 16px; font-weight: 600; }
+.graph-panel-header p { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+
+#cascade-svg { flex: 1; display: block; }
+
+.graph-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* Controls */
+.ctrl-group { }
+.ctrl-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 10px;
+}
+
+.select-wrap {
+  position: relative;
+}
+.select-wrap select {
+  width: 100%;
+  appearance: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 32px 9px 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.select-wrap select:focus { border-color: var(--blue); }
+.select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink2);
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.btn-row { display: flex; gap: 8px; }
+.btn {
+  flex: 1;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--ink);
+}
+.btn:hover { border-color: var(--blue); color: var(--blue); }
+.btn.active { background: var(--blue); border-color: var(--blue); color: #000; }
+.btn.danger.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.speed-row label { font-size: 13px; color: var(--ink2); flex-shrink: 0; }
+input[type=range] {
+  flex: 1;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  background: var(--blue);
+  cursor: pointer;
+}
+.speed-val { font-family: var(--mono); font-size: 13px; color: var(--blue); width: 28px; text-align: right; }
+
+/* R∞ */
+.stat-big {
+  text-align: center;
+  padding: 14px 0;
+}
+.stat-big-num {
+  font-family: var(--display);
+  font-size: 52px;
+  line-height: 1;
+  color: var(--ink);
+}
+.stat-big-num.red { color: var(--red); }
+.stat-big-num.green { color: var(--green); }
+.stat-big-label {
+  font-size: 12px;
+  color: var(--ink2);
+  margin-top: 4px;
+}
+
+.r-bar-block { margin-bottom: 10px; }
+.r-bar-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.r-bar-lbl { font-size: 13px; font-weight: 600; }
+.r-bar-lbl.true { color: var(--green); }
+.r-bar-lbl.false { color: var(--red); }
+.r-bar-pct { font-family: var(--mono); font-size: 13px; color: var(--ink2); }
+.r-bar-track { height: 8px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+.r-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+.r-bar-fill.true  { background: linear-gradient(90deg, #1a5f2a, var(--green)); }
+.r-bar-fill.false { background: linear-gradient(90deg, #6a1b1a, var(--red)); }
+
+.explain-box {
+  background: var(--blue-bg);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.explain-box strong { color: var(--blue); }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 3 — DROPOUT HEATMAP
+   ════════════════════════════════════════════════════════════════ */
+.heatmap-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.heatmap-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.heatmap-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.heatmap-desc {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.heatmap-grid-wrap {
+  position: relative;
+}
+.hm-corner { position: absolute; top: 0; left: 0; font-size: 10px; color: var(--ink3); font-family: var(--mono); }
+
+.hm-col-labels {
+  display: flex;
+  padding-left: 72px;
+  margin-bottom: 4px;
+}
+.hm-col-lbl {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink2);
+  font-weight: 500;
+}
+
+.hm-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.hm-row-lbl {
+  width: 72px;
+  font-size: 11px;
+  color: var(--ink2);
+  font-weight: 500;
+  padding-right: 8px;
+  text-align: right;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.hm-cells {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.hm-cell {
+  flex: 1;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.5s ease;
+  cursor: pointer;
+  position: relative;
+}
+.hm-cell:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.step-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.step-btn {
+  padding: 7px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.step-btn:hover { border-color: var(--blue); color: var(--blue); }
+.step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.step-indicator {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.step-dot {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border2);
+  transition: all 0.3s;
+  cursor: pointer;
+  flex: 1;
+}
+.step-dot.done  { background: var(--blue); opacity: 0.5; }
+.step-dot.active { background: var(--blue); flex: 2; }
+
+.lp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.lp-tag.hard     { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.lp-tag.softened { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(227,179,65,0.3); }
+.lp-tag.control  { background: var(--surface2); color: var(--ink2); border: 1px solid var(--border); }
+
+/* Compare panel */
+.compare-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.compare-item:last-child { border-bottom: none; }
+.compare-label { font-size: 14px; font-weight: 500; }
+.compare-vals { display: flex; gap: 20px; text-align: right; }
+.compare-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+.compare-val.before { color: var(--red); }
+.compare-val.after  { color: var(--green); }
+.compare-val-lbl    { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 4 — COUNTER-NARRATIVE
+   ════════════════════════════════════════════════════════════════ */
+.cn-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.detection-card {
+  background: var(--surface2);
+  border: 1px solid rgba(248,81,73,0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.detection-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.detection-emoji { font-size: 22px; }
+.detection-title { font-size: 18px; font-weight: 700; color: var(--red); }
+.detection-subtitle { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+
+.claim-block {
+  background: var(--bg);
+  border-left: 3px solid var(--red);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 14px;
+}
+.claim-lang-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.lang-btn {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  transition: all 0.2s;
+}
+.lang-btn.active { background: var(--blue-bg); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+
+.claim-text {
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.rebuttal-card {
+  background: var(--surface);
+  border: 1px solid rgba(63,185,80,0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.rebuttal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rebuttal-title { font-size: 16px; font-weight: 700; color: var(--green); }
+
+.rebuttal-text {
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+.sources-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.source-chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  background: var(--blue-bg);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 10px;
+  color: var(--blue);
+  font-family: var(--mono);
+}
+
+.platform-formats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.pf-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pf-btn:hover { border-color: var(--blue); color: var(--blue); }
+.pf-btn.active { background: var(--blue-bg); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+.pf-btn .pf-icon { font-size: 14px; }
+
+.formatted-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  display: none;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.formatted-box.visible { display: block; }
+
+/* Validator section */
+.validator-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.validator-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.validator-name { font-size: 15px; font-weight: 600; }
+.validator-meta { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+.send-btn {
+  margin-left: auto;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--green-bg);
+  border: 1px solid rgba(63,185,80,0.3);
+  color: var(--green);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.send-btn:hover { background: rgba(63,185,80,0.2); }
+.send-btn.sent  { background: var(--surface2); color: var(--ink2); border-color: var(--border); cursor: default; }
+
+/* ════════════════════════════════════════════════════════════════
+   Scrollbar
+   ════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Section dividers */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.sep { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  line-height: 1.6;
+  max-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* Cascade selector (graph view) */
+.cascade-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cs-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.cs-btn.false.active { background: var(--red-bg); border-color: rgba(248,81,73,0.4); color: var(--red); }
+.cs-btn.true.active  { background: var(--green-bg); border-color: rgba(63,185,80,0.4); color: var(--green); }
+.cs-btn:hover { border-color: var(--blue); }
+
+/* Insight callout */
+.insight {
+  background: var(--amber-bg);
+  border: 1px solid rgba(227,179,65,0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.insight .insight-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand">
+      <div class="brand-badge">IS</div>
+      <div>
+        <div class="brand-name">InfoShield</div>
+        <div class="brand-sub">Misinformation Suppression System · UFAZ Research Demo</div>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="status-badge alert" id="status-threat">
+        <div class="dot"></div>
+        <span id="threat-label">2 Active Threats</span>
+      </div>
+      <div class="status-badge demo" id="api-badge">
+        <div class="dot"></div>
+        <span id="api-badge-text">Connecting to API…</span>
+      </div>
+    </div>
+
+    <div id="clock" style="font-family:var(--mono);font-size:15px;color:var(--ink2)">--:--:--</div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs">
+    <div class="tab active" data-view="feed" onclick="switchTab('feed')">
+      <span class="tab-icon">📡</span>
+      Live Feed
+      <span class="tab-num">2</span>
+    </div>
+    <div class="tab" data-view="graph" onclick="switchTab('graph')">
+      <span class="tab-icon">🕸</span>
+      Cascade Graph
+    </div>
+    <div class="tab" data-view="heatmap" onclick="switchTab('heatmap')">
+      <span class="tab-icon">🔢</span>
+      d* Heatmap
+    </div>
+    <div class="tab" data-view="rebuttal" onclick="switchTab('rebuttal')">
+      <span class="tab-icon">✍️</span>
+      Counter-Narrative
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ══ VIEW: LIVE FEED ══════════════════════════════════════════ -->
+    <div class="view active" id="view-feed">
+      <div style="max-width:900px;margin:0 auto">
+
+        <!-- Instagram — LIVE -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="platform-header">
+            <div class="platform-icon instagram">📷</div>
+            <div>
+              <div class="platform-title">Instagram Monitor</div>
+              <div class="platform-sub">Watching public posts for conspiracy patterns using the WICO 5G & health dataset</div>
+            </div>
+            <div class="live-chip live" id="feed-live-chip">
+              <div class="dot"></div>
+              <span id="feed-live-label">ACTIVE · DEMO</span>
+            </div>
+          </div>
+
+          <div class="section-title">Detected Cascades</div>
+
+          <!-- False cascade 1 -->
+          <div class="cascade-card" id="cc-0" onclick="selectCascade(0)">
+            <div class="cascade-top">
+              <span class="cascade-verdict false">FALSE</span>
+              <div class="cascade-claim" id="cc0-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc0-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc0-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc0-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc0-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill" id="cc0-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct" id="cc0-conf-pct">—</span>
+            </div>
+          </div>
+
+          <!-- False cascade 2 -->
+          <div class="cascade-card" id="cc-1" onclick="selectCascade(1)">
+            <div class="cascade-top">
+              <span class="cascade-verdict false">FALSE</span>
+              <div class="cascade-claim" id="cc1-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc1-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc1-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc1-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc1-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill" id="cc1-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct" id="cc1-conf-pct">—</span>
+            </div>
+          </div>
+
+          <!-- True cascade -->
+          <div class="cascade-card true" id="cc-2" onclick="selectCascade(2)">
+            <div class="cascade-top">
+              <span class="cascade-verdict true">VERIFIED</span>
+              <div class="cascade-claim" id="cc2-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc2-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc2-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc2-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc2-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill green" id="cc2-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct green" id="cc2-conf-pct">—</span>
+            </div>
+          </div>
+
+          <div class="insight" style="margin-top:16px">
+            <div class="insight-label">📊 Key Insight</div>
+            False content spreads <strong>cross-community</strong> (Wide Burst pattern), while verified content
+            stays within communities (Slow Diffusion). This asymmetry powers InfoShield's
+            dropout algorithm.
+          </div>
+        </div>
+
+        <!-- Other platforms — tease -->
+        <div class="section-title" style="margin-bottom:12px">Other Platforms <span style="font-size:11px;color:var(--ink3);margin-left:8px;font-weight:400;text-transform:none;letter-spacing:0">(coming soon — tokens pending)</span></div>
+
+        <div class="grid-2" style="gap:10px">
+          <div class="platform-tease">
+            <div class="tease-icon telegram">💬</div>
+            <div class="tease-text">
+              <div class="tease-name">Telegram</div>
+              <div class="tease-sub">Monitor public channels via Bot API</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#25d366;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">💚</div>
+            <div class="tease-text">
+              <div class="tease-name">WhatsApp</div>
+              <div class="tease-sub">Twilio Business API integration</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#1877f2;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">🔵</div>
+            <div class="tease-text">
+              <div class="tease-name">Facebook</div>
+              <div class="tease-sub">Graph API public page monitoring</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#1d9bf0;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">🐦</div>
+            <div class="tease-text">
+              <div class="tease-name">X / Twitter</div>
+              <div class="tease-sub">Streaming API · WICO15/16 trained</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ VIEW: CASCADE GRAPH ═════════════════════════════════════ -->
+    <div class="view" id="view-graph">
+
+      <!-- CONCEPT EXPLAINER -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px">How misinformation and true content spread differently</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div style="background:rgba(220,38,38,0.05);border:1px solid rgba(220,38,38,0.2);border-radius:8px;padding:14px 16px">
+            <div style="font-size:15px;font-weight:700;color:var(--red);margin-bottom:6px">❌ False content — Wide Star (Burst)</div>
+            <div style="font-size:14px;color:var(--ink2);line-height:1.65">
+              Misinformation spreads <strong style="color:var(--ink)">outward immediately</strong>. One source post reaches
+              hundreds of users at <strong style="color:var(--ink)">depth 1</strong> within minutes. The tree is flat and wide —
+              like a star. Nobody pauses to verify, so no deep chains form.
+              <br><br>
+              <strong style="color:var(--red)">Max depth: 1–2 · Branching: high · Cross-community: high</strong>
+            </div>
+          </div>
+          <div style="background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.2);border-radius:8px;padding:14px 16px">
+            <div style="font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px">✅ True content — Deep Chain (Deliberate)</div>
+            <div style="font-size:14px;color:var(--ink2);line-height:1.65">
+              Verified content spreads <strong style="color:var(--ink)">step by step through trusted groups</strong>.
+              Each hop is a deliberate re-endorsement. The tree is tall and narrow — like a spine.
+              Content moves through 5–7 levels before the cascade dies out.
+              <br><br>
+              <strong style="color:var(--green)">Max depth: 5–7 · Branching: low · Stays within communities</strong>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:14px;color:var(--ink2);background:var(--surface2);border-radius:6px;padding:10px 14px">
+          <strong style="color:var(--ink)">Why this matters:</strong>
+          InfoShield's LP algorithm exploits this asymmetry — it suppresses <em>cross-community edges</em>
+          (where false content travels) while leaving <em>within-community edges</em> intact (where true content flows).
+          The trees below are built from the <strong style="color:var(--ink)">WICO dataset</strong> using the same synthetic generator as the paper.
+        </div>
+      </div>
+
+      <!-- SIDE-BY-SIDE TREES -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+        <!-- FALSE TREE -->
+        <div style="background:var(--surface);border:1px solid rgba(220,38,38,0.35);border-radius:var(--radius);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(220,38,38,0.2);background:rgba(220,38,38,0.04)">
+            <div style="font-size:16px;font-weight:700;color:var(--red)">❌ Misinformation Cascade</div>
+            <div style="font-size:13px;color:var(--ink2);margin-top:3px" id="false-tree-subtitle">Synthetic WICO-style false cascade · Wide burst pattern</div>
+          </div>
+          <div style="position:relative">
+            <svg id="false-tree-svg" style="width:100%;display:block"></svg>
+            <div id="false-depth-labels" style="position:absolute;top:0;left:0;pointer-events:none"></div>
+          </div>
+          <!-- Depth profile bar chart -->
+          <div style="padding:12px 18px;border-top:1px solid var(--border2)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase">Nodes per depth level</div>
+            <div id="false-depth-bars" style="display:flex;align-items:flex-end;gap:4px;height:60px"></div>
+            <div id="false-depth-labels-bar" style="display:flex;gap:4px;margin-top:4px"></div>
+          </div>
+          <!-- Stats -->
+          <div id="false-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--border2)"></div>
+        </div>
+
+        <!-- TRUE TREE -->
+        <div style="background:var(--surface);border:1px solid rgba(22,163,74,0.35);border-radius:var(--radius);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(22,163,74,0.2);background:rgba(22,163,74,0.04)">
+            <div style="font-size:16px;font-weight:700;color:var(--green)">✅ Verified Content Cascade</div>
+            <div style="font-size:13px;color:var(--ink2);margin-top:3px" id="true-tree-subtitle">Synthetic WICO-style true cascade · Deep chain pattern</div>
+          </div>
+          <div style="position:relative">
+            <svg id="true-tree-svg" style="width:100%;display:block"></svg>
+            <div id="true-depth-labels" style="position:absolute;top:0;left:0;pointer-events:none"></div>
+          </div>
+          <!-- Depth profile bar chart -->
+          <div style="padding:12px 18px;border-top:1px solid var(--border2)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase">Nodes per depth level</div>
+            <div id="true-depth-bars" style="display:flex;align-items:flex-end;gap:4px;height:60px"></div>
+            <div id="true-depth-labels-bar" style="display:flex;gap:4px;margin-top:4px"></div>
+          </div>
+          <!-- Stats -->
+          <div id="true-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--border2)"></div>
+        </div>
+
+      </div>
+
+      <!-- STRUCTURAL COMPARISON BAR CHARTS -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px">
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px">Structural Statistics Comparison</div>
+        <div style="font-size:14px;color:var(--ink2);margin-bottom:18px">Each metric maps directly to a variable in the paper — this is what BiGCN learns to classify.</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px" id="comparison-charts"></div>
+        <div style="margin-top:16px;font-size:13px;color:var(--ink2);background:var(--amber-bg);border:1px solid rgba(217,119,6,0.2);border-radius:6px;padding:10px 14px">
+          <strong style="color:var(--amber)">Paper connection:</strong>
+          The b⁻ matrix (false content SBM) has high <em>off-diagonal</em> entries because false content crosses polarisation classes quickly.
+          The b⁺ matrix (true content) has stronger <em>diagonal</em> entries because true content propagates within communities.
+          These two numbers are what the LP optimiser uses to compute the dropout matrix d*.
+        </div>
+      </div>
+
+    </div><!-- /view-graph -->
+
+    <!-- ══ VIEW: HEATMAP ═══════════════════════════════════════════ -->
+    <div class="view" id="view-heatmap">
+      <div style="max-width:1100px;margin:0 auto">
+
+        <div class="card" style="margin-bottom:20px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px">d* Dropout Matrix — What InfoShield Does</div>
+          <div style="font-size:15px;color:var(--ink2);line-height:1.6">
+            Each cell (row u → col v) shows the probability that content is <strong>allowed to pass</strong>
+            from community u to community v. <span style="color:var(--green)">Green = 1.0 (keep all)</span>,
+            <span style="color:var(--red)">Red = 0.0 (suppress all)</span>.
+            The algorithm keeps diagonal cells high (within-community flow stays intact)
+            and suppresses off-diagonal cells (cross-community false content is blocked).
+          </div>
+        </div>
+
+        <div class="heatmap-layout" style="margin-bottom:20px">
+
+          <!-- Control (all 1s) -->
+          <div class="heatmap-container">
+            <div class="heatmap-title">Without InfoShield <span style="color:var(--red);font-size:14px;margin-left:8px">Uncontrolled</span></div>
+            <div class="heatmap-desc">All edges kept — false content spreads freely across all community boundaries.</div>
+            <div id="heatmap-control"></div>
+          </div>
+
+          <!-- Algorithm 2 with stepper -->
+          <div class="heatmap-container">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div class="heatmap-title">With Algorithm 2 <span style="color:var(--green);font-size:14px;margin-left:8px">Active</span></div>
+              <div id="hm-lp-tag" class="lp-tag hard">HARD LP</div>
+            </div>
+            <div class="heatmap-desc">Dropout matrix d* computed by LP at each BFS step. Low off-diagonal values suppress cross-community spread.</div>
+            <div id="heatmap-alg2"></div>
+            <div class="step-controls" style="margin-top:14px">
+              <button class="step-btn" id="step-prev" onclick="stepHeatmap(-1)" disabled>← Prev</button>
+              <div class="step-indicator" id="step-indicator"></div>
+              <button class="step-btn" id="step-next" onclick="stepHeatmap(1)">Next →</button>
+            </div>
+            <div style="margin-top:10px;font-size:13px;color:var(--ink2)" id="step-desc">Step 0 of 4</div>
+          </div>
+        </div>
+
+        <!-- Results comparison -->
+        <div class="card">
+          <div style="font-size:17px;font-weight:700;margin-bottom:16px">Results: Control vs. Algorithm 2</div>
+          <div class="grid-3">
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">R∞ True Content</div>
+                  <div style="font-size:12px;color:var(--ink2)">Expected final cascade size</div>
+                </div>
+                <div class="compare-vals">
+                  <div>
+                    <div class="compare-val before">49</div>
+                    <div class="compare-val-lbl">no dropout</div>
+                  </div>
+                  <div>
+                    <div class="compare-val after">43</div>
+                    <div class="compare-val-lbl">α = 1.5</div>
+                  </div>
+                </div>
+              </div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">R∞ False Content</div>
+                  <div style="font-size:12px;color:var(--ink2)">Expected final cascade size</div>
+                </div>
+                <div class="compare-vals">
+                  <div>
+                    <div class="compare-val before">54</div>
+                    <div class="compare-val-lbl">no dropout</div>
+                  </div>
+                  <div>
+                    <div class="compare-val after">38</div>
+                    <div class="compare-val-lbl">α = 1.5</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">False Suppression</div>
+                  <div style="font-size:12px;color:var(--ink2)">Reduction in false content reach</div>
+                </div>
+                <div style="font-family:var(--display);font-size:40px;color:var(--green);text-align:right">–30%</div>
+              </div>
+            </div>
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">True Content Preserved</div>
+                  <div style="font-size:12px;color:var(--ink2)">Ratio of true reach retained</div>
+                </div>
+                <div style="font-family:var(--display);font-size:40px;color:var(--blue);text-align:right">88%</div>
+              </div>
+            </div>
+          </div>
+          <div class="insight" style="margin-top:16px">
+            <div class="insight-label">🔑 Key Result</div>
+            Algorithm 2 achieves <strong>discriminative suppression</strong>: false content is cut by 30%
+            while verified content retains 88% of its natural reach — matching the Bayiz & Topcu (2022) paper results.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ VIEW: COUNTER-NARRATIVE ════════════════════════════════ -->
+    <div class="view" id="view-rebuttal">
+      <div style="max-width:1000px;margin:0 auto">
+
+        <div class="card" style="margin-bottom:20px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px">Counter-Narrative Engine</div>
+          <div style="font-size:15px;color:var(--ink2);line-height:1.6">
+            When a false cascade is detected, InfoShield automatically generates a
+            <strong>RAG-grounded rebuttal</strong> via the Anthropic API and formats it
+            for each target platform. Rebuttals are then routed to verified domain experts for amplification.
+          </div>
+        </div>
+
+        <!-- Select which cascade to view rebuttal for -->
+        <div class="section-title" style="margin-bottom:12px">Select detected claim</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap" id="rebuttal-selector">
+          <button class="btn active" onclick="selectRebuttal(0)" id="rb-btn-0">🔴 5G / Cancer claim</button>
+          <button class="btn" onclick="selectRebuttal(1)" id="rb-btn-1">🔴 Vaccine / DNA claim</button>
+        </div>
+
+        <div class="cn-layout">
+          <!-- Left: detection + claim -->
+          <div>
+            <div class="detection-card">
+              <div class="detection-header">
+                <div class="detection-emoji">⚠️</div>
+                <div>
+                  <div class="detection-title">Misinformation Detected</div>
+                  <div class="detection-subtitle" id="rb-pattern-desc">—</div>
+                </div>
+              </div>
+
+              <!-- Meta -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">SOURCE</div>
+                  <div style="font-size:14px;font-weight:600" id="rb-source">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">BiGCN CONFIDENCE</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--amber);font-family:var(--display)" id="rb-conf">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">SPREAD PATTERN</div>
+                  <div style="font-size:14px;font-weight:600" id="rb-pattern">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">FIRST SEEN</div>
+                  <div style="font-size:14px;font-weight:600;font-family:var(--mono)" id="rb-time">—</div>
+                </div>
+              </div>
+
+              <div class="claim-block">
+                <div class="claim-lang-toggle">
+                  <button class="lang-btn active" onclick="setClaimLang('az',this)">🇦🇿 AZ</button>
+                  <button class="lang-btn" onclick="setClaimLang('en',this)">🇬🇧 EN</button>
+                </div>
+                <div class="claim-text" id="rb-claim">—</div>
+              </div>
+
+              <div style="font-size:13px;color:var(--ink2)">
+                Community spread: <span id="rb-spread" style="color:var(--ink)">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: rebuttal + routing -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="rebuttal-card">
+              <div class="rebuttal-header">
+                <span style="font-size:18px">✅</span>
+                <div class="rebuttal-title">Generated Rebuttal</div>
+              </div>
+
+              <div class="claim-lang-toggle" style="margin-bottom:10px">
+                <button class="lang-btn active" onclick="setRebuttalLang('az',this)">🇦🇿 AZ</button>
+                <button class="lang-btn" onclick="setRebuttalLang('en',this)">🇬🇧 EN</button>
+              </div>
+
+              <div class="rebuttal-text" id="rb-rebuttal">—</div>
+
+              <div class="sources-row" id="rb-sources"></div>
+
+              <div class="section-title" style="margin-top:4px">Format for platform</div>
+              <div class="platform-formats" id="pf-btns">
+                <button class="pf-btn" onclick="showFormat('telegram',this)"><span class="pf-icon">💬</span> Telegram</button>
+                <button class="pf-btn" onclick="showFormat('instagram',this)"><span class="pf-icon">📷</span> Instagram</button>
+                <button class="pf-btn" onclick="showFormat('whatsapp',this)"><span class="pf-icon">💚</span> WhatsApp</button>
+                <button class="pf-btn" onclick="showFormat('facebook',this)"><span class="pf-icon">🔵</span> Facebook</button>
+              </div>
+              <div class="formatted-box" id="formatted-box"></div>
+            </div>
+
+            <div class="card">
+              <div class="section-title">Route to Validator</div>
+              <div style="font-size:13px;color:var(--ink2);margin-bottom:12px">
+                Send rebuttal to a verified domain expert for amplification to their audience.
+              </div>
+              <div id="validator-list"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /app -->
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// DATA + STATE
+// ═══════════════════════════════════════════════════════════════════════
+
+let DATA = null;
+let selectedCascade = 0;
+let currentRebuttal = 0;
+let claimLang = 'az';
+let rebuttalLang = 'az';
+let currentHeatmapStep = 0;
+let heatmapMode = 'alg2'; // 'control' | 'alg2'
+
+// Graph state (hierarchical tree mode — no simulation)
+const NODE_COLORS = ['#4d94ff','#ff7733','#aa44ff','#33ffbb'];
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}, 1000);
+document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+
+// ═══════════════════════════════════════════════════════════════════════
+// API LAYER
+// ───────────────────────────────────────────────────────────────────────
+// The dashboard talks to the Flask server at localhost:5000.
+// Every call falls back to demo_data.json when the server is unavailable
+// (offline / demo mode). The API badge in the top bar shows the state.
+//
+// HOW TO USE (live mode):
+//   1. Start the server:  python -m api.server --mock
+//   2. Open dashboard/index.html via the Flask root route  OR  any HTTP
+//      server on the same origin (e.g. python -m http.server 8080).
+//   3. The dashboard auto-detects the API and switches to live mode.
+//      The badge turns green: "API Connected · Mock Mode".
+//   4. Live cascades poll every 2 s from GET /api/v1/live_cascades.
+//   5. Clicking "Generate Rebuttal" calls POST /api/v1/rebuttal.
+//   6. Clicking "Run Simulation" calls POST /api/v1/simulate.
+//   7. The health endpoint GET /api/v1/health is checked on load and
+//      every 10 s to detect disconnects.
+//
+// Endpoints used:
+//   GET  /api/v1/health          → component status + mock_mode flag
+//   GET  /api/v1/live_cascades   → array of active cascade objects
+//   POST /api/v1/simulate        → { cascade_id, alpha, lambda, content, seed }
+//   POST /api/v1/rebuttal        → { claim, topic, language, confidence }
+// ═══════════════════════════════════════════════════════════════════════
+
+const API_BASE = 'http://localhost:5000/api/v1';
+const POLL_MS  = 2000;   // live cascade polling interval
+let   apiOnline  = false;
+let   apiMock    = true;
+let   pollTimer  = null;
+
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path, { signal: AbortSignal.timeout(3000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// Update the top-bar badge
+function setApiBadge(state) {
+  // state: 'connecting' | 'live' | 'mock' | 'offline'
+  const badge = document.getElementById('api-badge');
+  const text  = document.getElementById('api-badge-text');
+  if (!badge || !text) return;
+  badge.className = 'status-badge ' + (state === 'live' ? 'live' : state === 'mock' ? 'live' : 'demo');
+  const labels = {
+    connecting: 'Connecting to API…',
+    live:       'API Connected · Live Mode',
+    mock:       'API Connected · Mock Mode',
+    offline:    'Offline — Demo Data',
+  };
+  text.textContent = labels[state] || state;
+}
+
+// Check health and update badge; returns true if API is reachable
+async function checkHealth() {
+  try {
+    const data = await apiGet('/health');
+    apiOnline = true;
+    apiMock   = data.mock_mode;
+    setApiBadge(data.mock_mode ? 'mock' : 'live');
+    return data;
+  } catch {
+    apiOnline = false;
+    setApiBadge('offline');
+    return null;
+  }
+}
+
+// Fetch live cascades from API; fall back to demo data
+async function fetchLiveCascades() {
+  if (apiOnline) {
+    try {
+      const cascades = await apiGet('/live_cascades');
+      if (Array.isArray(cascades) && cascades.length > 0) {
+        return normaliseCascades(cascades);
+      }
+    } catch { /* fall through */ }
+  }
+  return DATA.live_cascades;   // demo fallback
+}
+
+// Normalise an API cascade object to match demo_data.json shape
+function normaliseCascades(apiCascades) {
+  return apiCascades.map(c => ({
+    id:           c.id,
+    source:       c.platform === 'telegram' ? '@telegram_channel' : '@instagram_source',
+    platform:     c.platform || 'telegram',
+    platform_live: false,
+    label:        c.label,
+    binary_label: c.binary_label,
+    confidence:   c.confidence,
+    pattern:      c.pattern || 'Unknown',
+    pattern_desc: c.pattern || '',
+    nodes:        c.nodes,
+    edges:        c.edges,
+    started:      (c.started || '').replace('Z','').split('T')[1]?.slice(0,8) || '--:--:--',
+    elapsed_min:  0,
+    claim_az:     '',
+    claim_en:     '[Claim text not available — content ingested from ' + (c.platform||'platform') + ']',
+    topic:        'general',
+    community_spread: [0,0,0,0],
+    rebuttal_az:  null,
+    rebuttal_en:  null,
+    sources:      [],
+    validator:    null,
+    mock:         c.mock,
+  }));
+}
+
+// Call POST /api/v1/simulate; fall back to demo steps
+async function runSimulateAPI(cascadeId, alpha, lam) {
+  if (apiOnline) {
+    try {
+      const result = await apiPost('/simulate', {
+        cascade_id: cascadeId,
+        alpha:      alpha,
+        lambda:     lam,
+        content:    'false',
+        seed:       42,
+      });
+      // Map API steps → demo_data step shape
+      if (result.steps && result.steps.length > 0) {
+        return result.steps.map(s => ({
+          step:          s.step,
+          d_star:        s.d_star,
+          total_reached: s.total_reached,
+          new_infected:  s.new_infected || 0,
+          lp_type:       s.lp_type || 'hard',
+        }));
+      }
+    } catch (e) {
+      console.warn('simulate API failed:', e.message);
+    }
+  }
+  // Fallback to demo data steps
+  return DATA.simulation_runs.alpha_1_5.steps;
+}
+
+// Call POST /api/v1/rebuttal; fall back to demo rebuttal
+async function runRebuttalAPI(claim, topic, language, confidence) {
+  if (apiOnline) {
+    try {
+      return await apiPost('/rebuttal', { claim, topic, language, confidence });
+    } catch (e) {
+      console.warn('rebuttal API failed:', e.message);
+    }
+  }
+  return DATA.rebuttal || null;
+}
+
+// ── Live cascade polling ────────────────────────────────────────────────
+async function pollAndRefreshFeed() {
+  const cascades = await fetchLiveCascades();
+
+  // Update threat badge count
+  const falseCount = cascades.filter(c => c.binary_label === 'false').length;
+  const threatLabel = document.getElementById('threat-label');
+  if (threatLabel) threatLabel.textContent = falseCount + ' Active Threat' + (falseCount !== 1 ? 's' : '');
+  const threatBadge = document.getElementById('status-threat');
+  if (threatBadge) threatBadge.className = 'status-badge ' + (falseCount > 0 ? 'alert' : 'live');
+
+  // Update feed chip label
+  const feedLabel = document.getElementById('feed-live-label');
+  if (feedLabel) feedLabel.textContent = apiOnline ? 'ACTIVE · LIVE API' : 'ACTIVE · DEMO DATA';
+
+  // Refresh the feed tab with live data
+  refreshFeedWithCascades(cascades);
+}
+
+function refreshFeedWithCascades(cascades) {
+  // Merge API cascades into DATA.live_cascades (keep demo enriched fields if same id)
+  const merged = cascades.map(c => {
+    const existing = DATA.live_cascades.find(d => d.id === c.id);
+    return existing ? { ...c, ...existing } : c;
+  });
+  DATA.live_cascades = merged;
+  populateFeed();
+  // Refresh rebuttal panel if it uses a cascade that changed
+  if (currentRebuttalData) {
+    const updated = DATA.live_cascades.find(c => c.id === currentRebuttalData.id);
+    if (updated) currentRebuttalData = updated;
+  }
+}
+
+// Start polling loop
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollAndRefreshFeed();   // immediate first poll
+  pollTimer = setInterval(pollAndRefreshFeed, POLL_MS);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// LOAD — boot sequence
+// ═══════════════════════════════════════════════════════════════════════
+async function loadData() {
+  // 1. Load demo data as guaranteed baseline
+  try {
+    const r = await fetch('./demo_data.json');
+    DATA = await r.json();
+  } catch {
+    DATA = buildFallback();
+  }
+
+  // 2. Check if API is available
+  setApiBadge('connecting');
+  await checkHealth();
+
+  // 3. Init UI
+  init();
+
+  // 4. Start live polling (works in both online and offline mode)
+  startPolling();
+
+  // 5. Re-check health every 10 s (detect server restart / disconnect)
+  setInterval(checkHealth, 10000);
+}
+
+function buildFallback() {
+  // Minimal fallback if JSON fails
+  return {
+    meta: { class_names: ['Mainstream','Distributed','Fringe','Specialist'], class_sizes:[55057,38055,12572,8551] },
+    live_cascades: [
+      { id:'c1', source:'@az_health_info', platform:'instagram', platform_live:true, label:'false', binary_label:'false', confidence:0.91, pattern:'Wide Burst', pattern_desc:'False content spreading cross-community', nodes:54, edges:71, started:'14:23:05', elapsed_min:12, claim_az:'Yeni 5G qüllələri xərçəng riskini artırır', claim_en:'5G towers increase cancer risk', topic:'health', community_spread:[8,22,14,10], rebuttal_az:'5G ÜST tərəfindən təhlükəsiz hesab edilir.', rebuttal_en:'5G is safe per WHO guidelines.', sources:['who.int/5g'], validator:{name:'Dr. Leyla M.', followers:'18.4K', handle:'@drleyla_med', verified:true} },
+      { id:'c2', source:'@health_watch_az', platform:'instagram', platform_live:true, label:'false', binary_label:'false', confidence:0.84, pattern:'Deep Chain', pattern_desc:'Narrow chain of high-follower accounts', nodes:38, edges:41, started:'13:51:22', elapsed_min:44, claim_az:'COVID peyvəndi DNT-ni dəyişdirir', claim_en:'COVID vaccine alters DNA', topic:'vaccine', community_spread:[4,18,10,6], rebuttal_az:'mRNA peyvəndləri insan DNT-sinə daxil olmur.', rebuttal_en:'mRNA vaccines do not interact with DNA.', sources:['cdc.gov/vaccines'], validator:{name:'Prof. Rauf Ə.', followers:'12.1K', handle:'@profraauf', verified:true} },
+      { id:'c3', source:'@aztv_official', platform:'instagram', platform_live:false, label:'true', binary_label:'true', confidence:0.93, pattern:'Slow Diffusion', pattern_desc:'Steady within-community spread', nodes:49, edges:58, started:'11:55:12', elapsed_min:147, claim_az:'Nazirlər Kabineti yeni təhsil islahatları açıqladı', claim_en:'Cabinet announced education reforms 2025', topic:'government', community_spread:[28,12,4,5], rebuttal_az:null, rebuttal_en:null, sources:[], validator:null }
+    ],
+    simulation_runs: {
+      control: { label:'No Dropout', alpha:null, r_inf_true:49, r_inf_false:54,
+        steps:[ {step:0,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:8,lp_type:'control',new_infected:8}, {step:1,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:22,lp_type:'control',new_infected:14}, {step:2,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:38,lp_type:'control',new_infected:16}, {step:3,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:49,lp_type:'control',new_infected:11} ] },
+      alpha_1_5: { label:'Algorithm 2 (α=1.5)', alpha:1.5, r_inf_true:43, r_inf_false:38,
+        steps:[ {step:0,d_star:[[0.92,0.41,0.18,0.61],[0.38,0.88,0.22,0.51],[0.15,0.19,0.81,0.28],[0.55,0.44,0.31,0.91]],total_reached:8,lp_type:'hard',new_infected:8}, {step:1,d_star:[[0.89,0.35,0.12,0.54],[0.31,0.91,0.18,0.44],[0.11,0.14,0.87,0.21],[0.48,0.38,0.24,0.94]],total_reached:19,lp_type:'hard',new_infected:11}, {step:2,d_star:[[0.94,0.28,0.08,0.47],[0.24,0.93,0.13,0.36],[0.07,0.10,0.91,0.15],[0.41,0.30,0.18,0.96]],total_reached:29,lp_type:'softened',new_infected:10}, {step:3,d_star:[[0.96,0.21,0.05,0.39],[0.17,0.95,0.09,0.28],[0.04,0.07,0.94,0.10],[0.33,0.22,0.12,0.97]],total_reached:38,lp_type:'softened',new_infected:9} ] }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+function init() {
+  populateFeed();
+  initHeatmap();
+  selectRebuttal(0);
+  // Graph renders when its tab is first visited (via switchTab)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════
+let graphInitialised = false;
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  if (name === 'graph' && !graphInitialised) {
+    graphInitialised = true;
+    setTimeout(initGraph, 60);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEED VIEW
+// ═══════════════════════════════════════════════════════════════════════
+function populateFeed() {
+  const cs = DATA.live_cascades;
+  cs.forEach((c, i) => {
+    const claimEl = document.getElementById(`cc${i}-claim`);
+    if (claimEl) claimEl.textContent = c.claim_en;
+    const srcEl = document.getElementById(`cc${i}-source`); if (srcEl) srcEl.textContent = c.source;
+    const patEl = document.getElementById(`cc${i}-pattern`); if (patEl) patEl.textContent = c.pattern;
+    const nEl  = document.getElementById(`cc${i}-nodes`); if (nEl) nEl.textContent = c.nodes;
+    const tEl  = document.getElementById(`cc${i}-time`); if (tEl) tEl.textContent = c.started;
+    const cfEl = document.getElementById(`cc${i}-conf-fill`); if (cfEl) cfEl.style.width = Math.round(c.confidence*100)+'%';
+    const cpEl = document.getElementById(`cc${i}-conf-pct`); if (cpEl) cpEl.textContent = Math.round(c.confidence*100)+'%';
+  });
+}
+
+function selectCascade(i) {
+  document.querySelectorAll('.cascade-card').forEach((c,j) => c.classList.toggle('selected', j===i));
+  selectedCascade = i;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HIERARCHICAL TREE VISUALISATION (notebook-accurate)
+// Based on visualize_trees.ipynb: hierarchy layout, depth colour gradient,
+// node size = out-degree, depth guide lines, depth profile bar charts
+// ═══════════════════════════════════════════════════════════════════════
+
+// Synthetic tree generator — matches make_synthetic_tree() from notebook
+function makeSyntheticTree(label, nNodes, seed) {
+  // Simple seeded RNG (mulberry32)
+  let s = seed >>> 0;
+  function rand() { s|=0; s=s+0x6D2B79F5|0; let t=Math.imul(s^s>>>15,1|s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }
+  function randExp(mean) { return -mean * Math.log(1 - rand()); }
+  function randInt(lo, hi) { return lo + Math.floor(rand() * (hi - lo)); }
+
+  const nodes = [{id:'u0', depth:0, delay:0, outDeg:0, parent:null}];
+  const queue = ['u0'];
+  let uid = 1;
+
+  while (queue.length && uid < nNodes) {
+    const parentId = queue.shift();
+    const parent = nodes.find(n=>n.id===parentId);
+    const fanout = label==='false' ? randInt(3,7) : randInt(1,3);
+    const parentDelay = parent.delay;
+    for (let f=0; f<fanout && uid<nNodes; f++) {
+      const delay = parentDelay + randExp(label==='false' ? 2 : 8);
+      const child = {id:'u'+uid, depth:parent.depth+1, delay, outDeg:0, parent:parentId};
+      nodes.push(child);
+      parent.outDeg++;
+      queue.push('u'+uid);
+      uid++;
+    }
+  }
+  return nodes;
+}
+
+// Compute hierarchy layout positions (matching hierarchy_positions() in notebook)
+// Root at top, each depth level spread evenly across width
+function hierarchyLayout(nodes, W, H, PADDING) {
+  const byDepth = {};
+  nodes.forEach(n => { (byDepth[n.depth] = byDepth[n.depth]||[]).push(n); });
+  const maxDepth = Math.max(...nodes.map(n=>n.depth));
+  const positions = {};
+  const vStep = maxDepth > 0 ? (H - PADDING*2) / maxDepth : H/2;
+
+  Object.entries(byDepth).forEach(([d, ns]) => {
+    const depth = +d;
+    const count = ns.length;
+    ns.forEach((n, i) => {
+      const x = count === 1
+        ? W / 2
+        : PADDING + (i / (count - 1)) * (W - PADDING*2);
+      const y = PADDING + depth * vStep;
+      positions[n.id] = {x, y};
+    });
+  });
+  return {positions, maxDepth, byDepth, vStep};
+}
+
+// Depth colour: Reds for false (light → dark), Greens for true
+function depthColor(depth, maxDepth, label) {
+  const t = maxDepth > 0 ? 0.25 + 0.65 * (depth / maxDepth) : 0.5;
+  if (label === 'false') {
+    // Reds: rgb(255*t*2, 0, 0) clamped — matches cm.Reds
+    const r = Math.round(255 * (0.98 - 0.6 * (1-t)));
+    const g = Math.round(80 * (1-t));
+    const b = Math.round(60 * (1-t));
+    return `rgb(${r},${g},${b})`;
+  } else {
+    // Greens: matches cm.Greens
+    const r = Math.round(40 * (1-t));
+    const g = Math.round(140 + 110*t);
+    const b = Math.round(60 * (1-t));
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function renderHierarchicalTree(svgId, label, nNodes, seed) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) return null;
+  const W = svgEl.parentElement.clientWidth || 500;
+  const H = 320;
+  svgEl.setAttribute('height', H);
+  svgEl.setAttribute('width', W);
+
+  const PADDING = 40;
+  const nodes = makeSyntheticTree(label, nNodes, seed);
+  const {positions, maxDepth, byDepth, vStep} = hierarchyLayout(nodes, W, H, PADDING);
+  const maxOutDeg = Math.max(...nodes.map(n=>n.outDeg), 1);
+
+  const svg = d3.select('#'+svgId);
+  svg.selectAll('*').remove();
+
+  // White background
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','#fafbfc');
+
+  const g = svg.append('g');
+
+  // Depth guide lines + labels (matching notebook dashed lines)
+  for (let d=0; d<=maxDepth; d++) {
+    const y = PADDING + d * vStep;
+    const nodesAtD = byDepth[d] || [];
+    g.append('line')
+      .attr('x1', 24).attr('x2', W-8)
+      .attr('y1', y).attr('y2', y)
+      .attr('stroke', '#e5e7eb')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '4,3');
+    // Label on left: depth + count (matches notebook "d=N (count)")
+    g.append('text')
+      .attr('x', 2).attr('y', y+4)
+      .attr('font-size', 9).attr('fill', '#9ca3af')
+      .attr('font-family', 'DM Mono, monospace')
+      .text(`d${d} (${nodesAtD.length})`);
+  }
+
+  // Edges
+  nodes.forEach(n => {
+    if (!n.parent) return;
+    const p = positions[n.parent], c = positions[n.id];
+    if (!p || !c) return;
+    g.append('line')
+      .attr('x1', p.x).attr('y1', p.y)
+      .attr('x2', c.x).attr('y2', c.y)
+      .attr('stroke', '#d1d5db')
+      .attr('stroke-width', 0.8)
+      .attr('opacity', 0.7);
+  });
+
+  // Nodes
+  nodes.forEach(n => {
+    const pos = positions[n.id];
+    if (!pos) return;
+    const isRoot = n.parent === null;
+    // Size: 6 + 14 * (outDeg/maxOutDeg) — matches notebook 80+600*ratio
+    const r = isRoot ? 9 : 5 + 9 * (n.outDeg / maxOutDeg);
+    const color = isRoot ? '#1f2937' : depthColor(n.depth, maxDepth, label);
+
+    const circle = g.append('circle')
+      .attr('cx', pos.x).attr('cy', pos.y)
+      .attr('r', r)
+      .attr('fill', color)
+      .attr('opacity', 0.88);
+
+    // Black ring on root (matches notebook scatter with facecolors='none')
+    if (isRoot) {
+      g.append('circle')
+        .attr('cx', pos.x).attr('cy', pos.y)
+        .attr('r', r + 3)
+        .attr('fill', 'none')
+        .attr('stroke', '#111827')
+        .attr('stroke-width', 2);
+    }
+
+    // Tooltip
+    circle.on('mouseover', (ev) => {
+      const tt = document.getElementById('tooltip');
+      tt.style.display='block';
+      tt.style.left=(ev.clientX+12)+'px';
+      tt.style.top=(ev.clientY-10)+'px';
+      tt.innerHTML=`<strong>${isRoot?'Root (original post)':'User node'}</strong><br>Depth: ${n.depth}<br>Re-shares: ${n.outDeg}<br>${isRoot?'⚫ Black ring = source tweet':''}`;
+    }).on('mousemove', ev=>{
+      document.getElementById('tooltip').style.left=(ev.clientX+12)+'px';
+      document.getElementById('tooltip').style.top=(ev.clientY-10)+'px';
+    }).on('mouseout', ()=>{
+      document.getElementById('tooltip').style.display='none';
+    });
+  });
+
+  // Compute stats from full tree
+  const depthDist = {};
+  nodes.forEach(n => { depthDist[n.depth] = (depthDist[n.depth]||0)+1; });
+  const nonLeafOutDegs = nodes.filter(n=>n.outDeg>0).map(n=>n.outDeg);
+  const avgBranching = nonLeafOutDegs.length
+    ? (nonLeafOutDegs.reduce((a,b)=>a+b,0)/nonLeafOutDegs.length).toFixed(1)
+    : '0';
+  const nodesAtD1 = depthDist[1] || 0;
+
+  return {nodes, depthDist, maxDepth, avgBranching, nodesAtD1};
+}
+
+function renderDepthProfileBars(barContainerId, labelContainerId, depthDist, label) {
+  const container = document.getElementById(barContainerId);
+  const labelContainer = document.getElementById(labelContainerId);
+  if (!container) return;
+
+  const depths = Object.keys(depthDist).map(Number).sort((a,b)=>a-b);
+  const maxCount = Math.max(...depths.map(d=>depthDist[d]));
+  const H = 60;
+  const color = label === 'false' ? '#dc2626' : '#16a34a';
+  const lightColor = label === 'false' ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
+
+  container.innerHTML = depths.map(d => {
+    const count = depthDist[d];
+    const pct = maxCount > 0 ? (count/maxCount*100) : 0;
+    const barH = Math.max(4, Math.round(pct/100 * H));
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px">
+      <div style="font-size:10px;color:var(--ink2);font-family:var(--mono)">${count}</div>
+      <div style="width:100%;height:${barH}px;background:${color};border-radius:3px 3px 0 0;opacity:0.85"></div>
+    </div>`;
+  }).join('');
+
+  if (labelContainer) {
+    labelContainer.innerHTML = depths.map(d =>
+      `<div style="flex:1;text-align:center;font-size:10px;color:var(--ink3);font-family:var(--mono)">d${d}</div>`
+    ).join('');
+  }
+}
+
+function renderStatChips(containerId, stats, label) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const color = label==='false' ? 'var(--red)' : 'var(--green)';
+  const items = [
+    {label:'Total nodes', value: stats.totalNodes, desc:'cascade size (R∞)'},
+    {label:'Max depth', value: stats.maxDepth, desc:'SIR iterations'},
+    {label:'At depth 1', value: stats.nodesAtD1, desc:'first-wave burst'},
+    {label:'Avg branching', value: stats.avgBranching, desc:'per non-leaf node'},
+  ];
+  el.innerHTML = items.map(item => `
+    <div style="padding:10px 12px;border-right:1px solid var(--border2);text-align:center">
+      <div style="font-size:20px;font-weight:700;color:${color};font-family:'Bebas Neue',cursive;letter-spacing:0.5px">${item.value}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--ink);margin-top:1px">${item.label}</div>
+      <div style="font-size:10px;color:var(--ink3);margin-top:1px">${item.desc}</div>
+    </div>
+  `).join('');
+}
+
+function renderComparisonCharts(falseStats, trueStats) {
+  const container = document.getElementById('comparison-charts');
+  if (!container) return;
+
+  const metrics = [
+    {key:'totalNodes',   label:'Total nodes (R∞)',     desc:'What the LP minimises for false content',    paperVar:'R∞'},
+    {key:'maxDepth',     label:'Max depth',             desc:'More depth = more LP optimisation chances',  paperVar:'SIR steps'},
+    {key:'nodesAtD1',   label:'Nodes at depth 1',      desc:'Burst size in first SIR iteration',          paperVar:'|I₁|'},
+    {key:'avgBranching', label:'Avg branching factor', desc:'Must stay ≥ α for true content after dropout',paperVar:'branching ratio'},
+  ];
+
+  container.innerHTML = metrics.map(m => {
+    const fv = parseFloat(falseStats[m.key]);
+    const tv = parseFloat(trueStats[m.key]);
+    const maxV = Math.max(fv, tv, 1);
+    const fp = Math.round(fv/maxV*100);
+    const tp = Math.round(tv/maxV*100);
+    return `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px">${m.label}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">Paper variable: <em>${m.paperVar}</em></div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--red);font-weight:600">❌ False</span>
+            <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--red)">${fv}</span>
+          </div>
+          <div style="height:10px;background:rgba(220,38,38,0.1);border-radius:5px;overflow:hidden">
+            <div style="height:100%;width:${fp}%;background:var(--red);border-radius:5px;transition:width 0.5s ease"></div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--green);font-weight:600">✅ True</span>
+            <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">${tv}</span>
+          </div>
+          <div style="height:10px;background:rgba(22,163,74,0.1);border-radius:5px;overflow:hidden">
+            <div style="height:100%;width:${tp}%;background:var(--green);border-radius:5px;transition:width 0.5s ease"></div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--ink2);line-height:1.4">${m.desc}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+let treeStatsCache = {false: null, true: null};
+
+function initGraph() {
+  // Render both trees side by side
+  const falseResult = renderHierarchicalTree('false-tree-svg', 'false', 55, 42);
+  const trueResult  = renderHierarchicalTree('true-tree-svg',  'true',  45, 99);
+
+  if (falseResult) {
+    const fs = {
+      totalNodes: falseResult.nodes.length,
+      maxDepth: falseResult.maxDepth,
+      nodesAtD1: falseResult.nodesAtD1,
+      avgBranching: falseResult.avgBranching,
+    };
+    treeStatsCache.false = fs;
+    renderDepthProfileBars('false-depth-bars', 'false-depth-labels-bar', falseResult.depthDist, 'false');
+    renderStatChips('false-stats', fs, 'false');
+  }
+
+  if (trueResult) {
+    const ts = {
+      totalNodes: trueResult.nodes.length,
+      maxDepth: trueResult.maxDepth,
+      nodesAtD1: trueResult.nodesAtD1,
+      avgBranching: trueResult.avgBranching,
+    };
+    treeStatsCache.true = ts;
+    renderDepthProfileBars('true-depth-bars', 'true-depth-labels-bar', trueResult.depthDist, 'true');
+    renderStatChips('true-stats', ts, 'true');
+  }
+
+  if (treeStatsCache.false && treeStatsCache.true) {
+    renderComparisonCharts(treeStatsCache.false, treeStatsCache.true);
+  }
+}
+
+// Stubs for functions referenced from init() — no longer needed for graph
+function updateRInfBars() {}
+function setMode() {}
+function selectGraphCascade() {}
+function updateGraphTitles() {}
+function togglePlay() {}
+function resetSim() {}
+function onAlphaChange() {}
+function onSpeedChange(el) {
+  const v = document.getElementById('speed-val');
+  if(v) v.textContent = el.value + '×';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HEATMAP VIEW
+// ═══════════════════════════════════════════════════════════════════════
+const CLASSES_SHORT = ['Main.','Dist.','Fringe','Spec.'];
+const CLASSES_FULL  = ['Mainstream\n(55K)','Distributed\n(38K)','Fringe\n(13K)','Specialist\n(9K)'];
+
+function initHeatmap() {
+  // Control — all 1s
+  renderHeatmapIn('heatmap-control', [[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]], false);
+  // Algorithm 2 — step 0
+  currentHeatmapStep=0;
+  updateAlg2Heatmap();
+  buildStepIndicator();
+}
+
+function renderHeatmapIn(containerId, matrix, interactive) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+
+  const colLabels = `<div class="hm-col-labels">${CLASSES_SHORT.map(c=>`<div class="hm-col-lbl">${c}</div>`).join('')}</div>`;
+  let rows='';
+  for(let u=0;u<4;u++){
+    let cells='';
+    for(let v=0;v<4;v++){
+      const val=matrix[u][v];
+      const r=Math.round(255*(1-val)), gr=Math.round(180*val);
+      const bg=`rgba(${r},${gr},30,0.3)`;
+      const border=`rgba(${r},${gr},30,0.5)`;
+      const textColor=val>0.6?'#3fb950':val>0.3?'#e3b341':'#f85149';
+      const tipText=`${CLASSES_FULL[u].split('\n')[0]} → ${CLASSES_FULL[v].split('\n')[0]}: d*=${val.toFixed(2)}`;
+      const cursor=interactive?'cursor:pointer':'';
+      cells+=`<div class="hm-cell" style="background:${bg};border:1px solid ${border};${cursor}" data-tip="${tipText}">
+        <span style="color:${textColor};font-size:15px;font-weight:700">${val.toFixed(2)}</span>
+      </div>`;
+    }
+    rows+=`<div class="hm-row"><div class="hm-row-lbl">${CLASSES_SHORT[u]}</div><div class="hm-cells">${cells}</div></div>`;
+  }
+  el.innerHTML=colLabels+rows;
+}
+
+function updateAlg2Heatmap() {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  const s = steps[currentHeatmapStep];
+  renderHeatmapIn('heatmap-alg2', s.d_star, true);
+
+  const lpTag = document.getElementById('hm-lp-tag');
+  lpTag.textContent = s.lp_type.toUpperCase() + ' LP';
+  lpTag.className = 'lp-tag ' + s.lp_type;
+
+  document.getElementById('step-desc').textContent =
+    `Step ${s.step+1} of ${steps.length} — ${s.total_reached} nodes reached, +${s.new_infected} newly infected`;
+
+  document.getElementById('step-prev').disabled = currentHeatmapStep===0;
+  document.getElementById('step-next').disabled = currentHeatmapStep===steps.length-1;
+
+  // Update dots
+  const dots = document.querySelectorAll('.step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.toggle('active',i===currentHeatmapStep);
+    d.classList.toggle('done',i<currentHeatmapStep);
+  });
+}
+
+function buildStepIndicator() {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  const el = document.getElementById('step-indicator');
+  el.innerHTML = steps.map((s,i)=>`<div class="step-dot${i===0?' active':''}" onclick="jumpHeatmapStep(${i})" title="Step ${i+1}: +${s.new_infected} infected"></div>`).join('');
+}
+
+function stepHeatmap(dir) {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  currentHeatmapStep = Math.max(0, Math.min(steps.length-1, currentHeatmapStep+dir));
+  updateAlg2Heatmap();
+}
+function jumpHeatmapStep(i) {
+  currentHeatmapStep=i;
+  updateAlg2Heatmap();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COUNTER-NARRATIVE VIEW
+// ═══════════════════════════════════════════════════════════════════════
+let currentRebuttalData = null;
+
+function selectRebuttal(idx) {
+  currentRebuttal=idx;
+  document.querySelectorAll('[id^="rb-btn-"]').forEach((b,i)=>b.classList.toggle('active',i===idx));
+
+  const falseCascades = DATA.live_cascades.filter(c=>c.binary_label==='false');
+  const c = falseCascades[idx];
+  if(!c) return;
+  currentRebuttalData = c;
+
+  // Reset lang to az
+  claimLang='az'; rebuttalLang='az';
+  document.querySelectorAll('.lang-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.includes('AZ'));
+  });
+
+  document.getElementById('rb-source').textContent = c.source;
+  document.getElementById('rb-conf').textContent = Math.round(c.confidence*100)+'%';
+  document.getElementById('rb-pattern').textContent = c.pattern;
+  document.getElementById('rb-pattern-desc').textContent = c.pattern_desc;
+  document.getElementById('rb-time').textContent = c.started + ' ('+c.elapsed_min+' min ago)';
+  document.getElementById('rb-claim').textContent = c.claim_az || c.claim_en;
+  document.getElementById('rb-rebuttal').textContent = c.rebuttal_az || c.rebuttal_en || 'No rebuttal generated.';
+
+  const spread = c.community_spread;
+  const names = DATA.meta.class_names;
+  document.getElementById('rb-spread').textContent =
+    spread.map((n,i)=>`${names[i]}: ${n}`).join(' · ');
+
+  // Sources
+  const srcEl = document.getElementById('rb-sources');
+  srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+  // Validators
+  const vEl = document.getElementById('validator-list');
+  if(c.validator){
+    const v=c.validator;
+    vEl.innerHTML=`
+      <div class="validator-card">
+        <div class="validator-avatar">${v.name.charAt(0)}</div>
+        <div>
+          <div class="validator-name">${v.name} ${v.verified?'✓':''}</div>
+          <div class="validator-meta">${v.followers} followers · ${v.handle}</div>
+        </div>
+        <button class="send-btn" onclick="sendValidator(this)">Send →</button>
+      </div>`;
+  } else {
+    vEl.innerHTML='<div style="font-size:13px;color:var(--ink2)">No validator assigned.</div>';
+  }
+
+  // Clear format box
+  document.getElementById('formatted-box').classList.remove('visible');
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function setClaimLang(lang, btn) {
+  claimLang=lang;
+  btn.parentElement.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  const c=currentRebuttalData;
+  if(!c) return;
+  document.getElementById('rb-claim').textContent = lang==='az' ? (c.claim_az||c.claim_en) : (c.claim_en||c.claim_az);
+}
+
+function setRebuttalLang(lang, btn) {
+  rebuttalLang=lang;
+  btn.parentElement.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  const c=currentRebuttalData;
+  if(!c) return;
+  document.getElementById('rb-rebuttal').textContent = lang==='az' ? (c.rebuttal_az||c.rebuttal_en) : (c.rebuttal_en||c.rebuttal_az);
+}
+
+const PLATFORM_FORMATS = {
+  telegram:  (c)=>`📌 <b>RƏSMİ CAVAB</b>\n\n${c.rebuttal_az}\n\n🔗 Mənbə: ${(c.sources||[]).join(', ')}`,
+  instagram: (c)=>`${c.rebuttal_az}\n\n#Sağlamlıq #RəsmiMəlumat #ÜST`,
+  whatsapp:  (c)=>`${c.rebuttal_az}`,
+  facebook:  (c)=>`${c.rebuttal_az}\n\n📢 Rəsmi məlumat — ${(c.sources||[]).join(', ')}`
+};
+
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c=currentRebuttalData;
+  if(!c) return;
+  const text = PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent=text;
+  box.classList.add('visible');
+}
+
+function sendValidator(btn) {
+  btn.textContent='✓ Sent';
+  btn.classList.add('sent');
+  btn.disabled=true;
+  setTimeout(()=>{btn.textContent='Send →';btn.classList.remove('sent');btn.disabled=false;}, 4000);
+}
+
+// ── API-powered rebuttal regeneration ─────────────────────────────────
+async function regenRebuttal() {
+  const btn = document.getElementById('regen-btn');
+  const rebuttalEl = document.getElementById('rb-rebuttal');
+  const c = currentRebuttalData;
+  if (!c) return;
+
+  if (btn) { btn.textContent = '⟳ Calling…'; btn.disabled = true; }
+  if (rebuttalEl) rebuttalEl.style.opacity = '0.4';
+
+  const claim = rebuttalLang === 'az' ? (c.claim_az || c.claim_en) : (c.claim_en || c.claim_az);
+  const result = await runRebuttalAPI(claim, c.topic || 'health', 'az', c.confidence || 0.9);
+
+  if (result) {
+    // Patch the cascade data with fresh rebuttal
+    c.rebuttal_az = result.rebuttal || c.rebuttal_az;
+    c.rebuttal_en = result.rebuttal || c.rebuttal_en;
+    c.sources     = result.sources  || c.sources;
+    if (result.formatted) {
+      c._formatted = result.formatted;
+    }
+    // Re-render
+    if (rebuttalEl) rebuttalEl.textContent = rebuttalLang === 'az' ? c.rebuttal_az : c.rebuttal_en;
+    const srcEl = document.getElementById('rb-sources');
+    if (srcEl) srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+    const apiNote = result.mock ? ' (mock)' : ' (live API)';
+    if (btn) { btn.textContent = '✓ Updated' + apiNote; btn.disabled = false; }
+    setTimeout(() => { if(btn){ btn.textContent='⟳ API'; btn.disabled=false; } }, 3000);
+  } else {
+    if (btn) { btn.textContent = '⟳ API'; btn.disabled = false; }
+  }
+  if (rebuttalEl) rebuttalEl.style.opacity = '1';
+}
+
+// Override showFormat to use API-returned formatted text when available
+const _origShowFormat = showFormat;
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c = currentRebuttalData;
+  if (!c) return;
+  // Prefer live API formatted text, then static formatters
+  const apiFormatted = c._formatted && c._formatted[platform];
+  const text = apiFormatted || PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent = text;
+  box.classList.add('visible');
+}
+
+// ── API-powered rebuttal regeneration ─────────────────────────────────
+async function regenRebuttal() {
+  const btn = document.getElementById('regen-btn');
+  const rebuttalEl = document.getElementById('rb-rebuttal');
+  const c = currentRebuttalData;
+  if (!c) return;
+
+  if (btn) { btn.textContent = '⟳ Calling…'; btn.disabled = true; }
+  if (rebuttalEl) rebuttalEl.style.opacity = '0.4';
+
+  const claim = rebuttalLang === 'az' ? (c.claim_az || c.claim_en) : (c.claim_en || c.claim_az);
+  const result = await runRebuttalAPI(claim || 'test claim', c.topic || 'health', 'az', c.confidence || 0.9);
+
+  if (result) {
+    c.rebuttal_az = result.rebuttal || c.rebuttal_az;
+    c.rebuttal_en = result.rebuttal || c.rebuttal_en;
+    c.sources     = result.sources  || c.sources;
+    if (result.formatted) c._formatted = result.formatted;
+
+    if (rebuttalEl) rebuttalEl.textContent = rebuttalLang === 'az' ? c.rebuttal_az : c.rebuttal_en;
+    const srcEl = document.getElementById('rb-sources');
+    if (srcEl) srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+    const apiNote = result.mock ? ' (mock)' : ' (live)';
+    if (btn) { btn.textContent = '✓ Updated' + apiNote; btn.disabled = false; }
+    setTimeout(() => { if(btn){ btn.textContent='⟳ API'; btn.disabled=false; } }, 3000);
+  } else {
+    if (btn) { btn.textContent = '⟳ API'; btn.disabled = false; }
+  }
+  if (rebuttalEl) rebuttalEl.style.opacity = '1';
+}
+
+// showFormat: prefer API-returned formatted text when available
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c = currentRebuttalData;
+  if (!c) return;
+  const apiFormatted = c._formatted && c._formatted[platform];
+  const text = apiFormatted || PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent = text;
+  box.classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>

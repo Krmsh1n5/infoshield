@@ -1,0 +1,13 @@
+{
+  "segment": "other_conspiracy",
+  "false_dirs": [
+    "Other_Graphs"
+  ],
+  "true_dirs": [
+    "Non_Conspiracy_Graphs"
+  ],
+  "description": "General conspiracy cascades vs verified non-conspiracy content. Baseline segment for comparison with conspiracy_5g.",
+  "n_true_cascades": 2490,
+  "n_false_cascades": 596,
+  "k": 3
+}
