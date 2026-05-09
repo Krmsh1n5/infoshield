@@ -1184,188 +1184,97 @@ input[type=range]::-webkit-slider-thumb {
     <!-- ══ VIEW: CASCADE GRAPH ═════════════════════════════════════ -->
     <div class="view" id="view-graph">
 
-      <!-- TOP EXPLAINER STRIP -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:16px">
-        <div style="font-size:19px;font-weight:700;margin-bottom:8px">What am I looking at?</div>
-        <div style="font-size:15px;color:var(--ink2);line-height:1.7;max-width:900px">
-          This graph shows how a piece of content — a rumour, a news story — spreads through a social network.
-          Each <strong style="color:var(--ink)">circle (node)</strong> is a user.
-          Each <strong style="color:var(--ink)">line (edge)</strong> is a share or retweet.
-          Circles are colour-coded by their <strong style="color:var(--ink)">community</strong> — a cluster of users who interact mostly with each other.
-          Press <strong style="color:var(--blue)">▶ Play</strong> to watch the content spread step by step through the network.
+      <!-- CONCEPT EXPLAINER -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:16px">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px">How misinformation and true content spread differently</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div style="background:rgba(220,38,38,0.05);border:1px solid rgba(220,38,38,0.2);border-radius:8px;padding:14px 16px">
+            <div style="font-size:15px;font-weight:700;color:var(--red);margin-bottom:6px">❌ False content — Wide Star (Burst)</div>
+            <div style="font-size:14px;color:var(--ink2);line-height:1.65">
+              Misinformation spreads <strong style="color:var(--ink)">outward immediately</strong>. One source post reaches
+              hundreds of users at <strong style="color:var(--ink)">depth 1</strong> within minutes. The tree is flat and wide —
+              like a star. Nobody pauses to verify, so no deep chains form.
+              <br><br>
+              <strong style="color:var(--red)">Max depth: 1–2 · Branching: high · Cross-community: high</strong>
+            </div>
+          </div>
+          <div style="background:rgba(22,163,74,0.05);border:1px solid rgba(22,163,74,0.2);border-radius:8px;padding:14px 16px">
+            <div style="font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px">✅ True content — Deep Chain (Deliberate)</div>
+            <div style="font-size:14px;color:var(--ink2);line-height:1.65">
+              Verified content spreads <strong style="color:var(--ink)">step by step through trusted groups</strong>.
+              Each hop is a deliberate re-endorsement. The tree is tall and narrow — like a spine.
+              Content moves through 5–7 levels before the cascade dies out.
+              <br><br>
+              <strong style="color:var(--green)">Max depth: 5–7 · Branching: low · Stays within communities</strong>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:14px;color:var(--ink2);background:var(--surface2);border-radius:6px;padding:10px 14px">
+          <strong style="color:var(--ink)">Why this matters:</strong>
+          InfoShield's LP algorithm exploits this asymmetry — it suppresses <em>cross-community edges</em>
+          (where false content travels) while leaving <em>within-community edges</em> intact (where true content flows).
+          The trees below are built from the <strong style="color:var(--ink)">WICO dataset</strong> using the same synthetic generator as the paper.
         </div>
       </div>
 
-      <div class="graph-layout">
-        <!-- GRAPH -->
-        <div class="graph-panel">
-          <div class="graph-panel-header">
-            <div>
-              <h3 id="graph-main-title">False Content Cascade — No Dropout</h3>
-              <p id="graph-main-sub">Watch how misinformation jumps across community boundaries</p>
-            </div>
-            <div id="graph-node-count" style="font-family:var(--mono);font-size:13px;color:var(--ink2)">0 nodes</div>
-          </div>
-          <svg id="cascade-svg"></svg>
+      <!-- SIDE-BY-SIDE TREES -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
 
-          <!-- LIVE NARRATIVE BAR — updates as sim runs -->
-          <div id="narrative-bar" style="padding:14px 18px;border-top:1px solid var(--border);background:var(--surface2);flex-shrink:0">
-            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-              <div id="narr-step-badge" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-family:var(--mono);font-size:13px;color:var(--ink2);flex-shrink:0">
-                Step — / —
-              </div>
-              <div id="narr-main" style="font-size:15px;color:var(--ink);flex:1;min-width:200px">
-                Press <strong>▶ Play</strong> to start the simulation.
-              </div>
-              <div id="narr-count" style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink2);flex-shrink:0;text-align:right">
-                0 nodes reached
-              </div>
-            </div>
+        <!-- FALSE TREE -->
+        <div style="background:var(--surface);border:1px solid rgba(220,38,38,0.35);border-radius:var(--radius);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(220,38,38,0.2);background:rgba(220,38,38,0.04)">
+            <div style="font-size:16px;font-weight:700;color:var(--red)">❌ Misinformation Cascade</div>
+            <div style="font-size:13px;color:var(--ink2);margin-top:3px" id="false-tree-subtitle">Synthetic WICO-style false cascade · Wide burst pattern</div>
           </div>
+          <div style="position:relative">
+            <svg id="false-tree-svg" style="width:100%;display:block"></svg>
+            <div id="false-depth-labels" style="position:absolute;top:0;left:0;pointer-events:none"></div>
+          </div>
+          <!-- Depth profile bar chart -->
+          <div style="padding:12px 18px;border-top:1px solid var(--border2)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase">Nodes per depth level</div>
+            <div id="false-depth-bars" style="display:flex;align-items:flex-end;gap:4px;height:60px"></div>
+            <div id="false-depth-labels-bar" style="display:flex;gap:4px;margin-top:4px"></div>
+          </div>
+          <!-- Stats -->
+          <div id="false-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--border2)"></div>
         </div>
 
-        <!-- SIDEBAR -->
-        <div class="graph-sidebar">
-
-          <!-- What to show -->
-          <div class="card">
-            <div style="font-size:15px;font-weight:700;margin-bottom:10px">1 · Choose content type</div>
-            <div style="font-size:13px;color:var(--ink2);margin-bottom:10px;line-height:1.5">
-              See how <strong style="color:var(--red)">false content</strong> (a 5G conspiracy) spreads differently from
-              <strong style="color:var(--green)">true content</strong> (a government announcement).
-            </div>
-            <div class="cascade-selector">
-              <div class="cs-btn false active" id="cs-false" onclick="selectGraphCascade('false')">🔴 False Content</div>
-              <div class="cs-btn true" id="cs-true" onclick="selectGraphCascade('true')">🟢 True Content</div>
-            </div>
+        <!-- TRUE TREE -->
+        <div style="background:var(--surface);border:1px solid rgba(22,163,74,0.35);border-radius:var(--radius);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(22,163,74,0.2);background:rgba(22,163,74,0.04)">
+            <div style="font-size:16px;font-weight:700;color:var(--green)">✅ Verified Content Cascade</div>
+            <div style="font-size:13px;color:var(--ink2);margin-top:3px" id="true-tree-subtitle">Synthetic WICO-style true cascade · Deep chain pattern</div>
           </div>
-
-          <!-- Mode toggle with explanation -->
-          <div class="card">
-            <div style="font-size:15px;font-weight:700;margin-bottom:10px">2 · Choose simulation mode</div>
-
-            <div id="mode-explain-nodropout" style="background:var(--red-bg);border:1px solid rgba(248,81,73,0.2);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--ink2)">
-              <div style="font-weight:700;color:var(--red);margin-bottom:4px">📡 No Dropout — Baseline</div>
-              <strong style="color:var(--ink)">No intervention.</strong> Every share is passed through as-is.
-              This is what happens today on social platforms — content spreads freely
-              across all community boundaries. False content reaches <strong style="color:var(--red)">54 nodes</strong> on average.
-            </div>
-
-            <div id="mode-explain-alg2" style="background:var(--green-bg);border:1px solid rgba(63,185,80,0.2);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--ink2);display:none">
-              <div style="font-weight:700;color:var(--green);margin-bottom:4px">🛡 Algorithm 2 — InfoShield Active</div>
-              <strong style="color:var(--ink)">Selective suppression.</strong> At each spread step, InfoShield
-              solves a <strong style="color:var(--ink)">linear programme</strong> to find the minimum dropout
-              rates that slow false content while keeping true content flowing.
-              Cross-community edges (where false content travels) get a low pass probability.
-              Result: false content drops to <strong style="color:var(--green)">38 nodes</strong> — a <strong style="color:var(--green)">30% reduction</strong>.
-            </div>
-
-            <div class="btn-row" style="margin-bottom:12px">
-              <button class="btn active" id="btn-control" onclick="setMode('control')">No Dropout</button>
-              <button class="btn" id="btn-alg2" onclick="setMode('alg2')">🛡 Algorithm 2</button>
-            </div>
-
-            <div id="alpha-row" style="display:none">
-              <div style="font-size:12px;color:var(--ink2);margin-bottom:6px">
-                <strong style="color:var(--ink)">α (alpha)</strong> controls how much true content must be preserved.
-                Higher α = stronger protection for true content.
-              </div>
-              <div class="select-wrap">
-                <select id="alpha-select" onchange="onAlphaChange()">
-                  <option value="1.5" selected>α = 1.5 — recommended balance</option>
-                  <option value="2.0">α = 2.0 — protect true content more</option>
-                  <option value="1.0">α = 1.0 — suppress false more aggressively</option>
-                </select>
-              </div>
-            </div>
+          <div style="position:relative">
+            <svg id="true-tree-svg" style="width:100%;display:block"></svg>
+            <div id="true-depth-labels" style="position:absolute;top:0;left:0;pointer-events:none"></div>
           </div>
-
-          <!-- Play controls -->
-          <div class="card">
-            <div style="font-size:15px;font-weight:700;margin-bottom:6px">3 · Run the simulation</div>
-            <div style="font-size:13px;color:var(--ink2);margin-bottom:12px;line-height:1.5">
-              Each step represents one <strong style="color:var(--ink)">BFS wave</strong> — all nodes
-              that newly share the content in that round. Watch nodes change colour as the content spreads.
-            </div>
-
-            <div class="speed-row" style="margin-bottom:12px">
-              <label style="font-size:13px;color:var(--ink2)">Speed</label>
-              <input type="range" id="speed-slider" min="1" max="8" value="3" oninput="onSpeedChange(this)">
-              <span class="speed-val" id="speed-val">3×</span>
-            </div>
-
-            <div class="btn-row">
-              <button class="btn active" id="play-btn" onclick="togglePlay()">▶ Play</button>
-              <button class="btn" onclick="resetSim()">↺ Reset</button>
-            </div>
+          <!-- Depth profile bar chart -->
+          <div style="padding:12px 18px;border-top:1px solid var(--border2)">
+            <div style="font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase">Nodes per depth level</div>
+            <div id="true-depth-bars" style="display:flex;align-items:flex-end;gap:4px;height:60px"></div>
+            <div id="true-depth-labels-bar" style="display:flex;gap:4px;margin-top:4px"></div>
           </div>
+          <!-- Stats -->
+          <div id="true-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--border2)"></div>
+        </div>
 
-          <!-- Results card -->
-          <div class="card">
-            <div style="font-size:15px;font-weight:700;margin-bottom:12px">Final spread (R∞)</div>
-            <div style="font-size:13px;color:var(--ink2);margin-bottom:12px;line-height:1.5">
-              R∞ is the total number of users who received the content by the end of the simulation.
-            </div>
-            <div class="r-bar-block">
-              <div class="r-bar-label-row">
-                <span class="r-bar-lbl true">✓ True content</span>
-                <span class="r-bar-pct" id="r-true-pct">43 / 49</span>
-              </div>
-              <div class="r-bar-track"><div class="r-bar-fill true" id="r-bar-true" style="width:88%"></div></div>
-            </div>
-            <div class="r-bar-block" style="margin-top:10px">
-              <div class="r-bar-label-row">
-                <span class="r-bar-lbl false">✗ False content</span>
-                <span class="r-bar-pct" id="r-false-pct">38 / 54</span>
-              </div>
-              <div class="r-bar-track"><div class="r-bar-fill false" id="r-bar-false" style="width:70%"></div></div>
-            </div>
-            <div class="explain-box" style="margin-top:12px" id="result-explain">
-              With <strong>α = 1.5</strong>, Algorithm 2 cuts false content reach by
-              <strong>30%</strong> while preserving <strong>88%</strong> of true content flow.
-            </div>
-          </div>
+      </div>
 
-          <!-- Legend -->
-          <div class="card">
-            <div style="font-size:15px;font-weight:700;margin-bottom:12px">Node colours</div>
-            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
-                <div style="width:16px;height:16px;border-radius:50%;background:#58a6ff;border:2px solid #4488ee;flex-shrink:0"></div>
-                <div><strong style="color:var(--ink)">Susceptible</strong><div style="font-size:12px;color:var(--ink2)">Has not seen the content yet</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
-                <div style="width:16px;height:16px;border-radius:50%;background:#f85149;border:2px solid #cc2222;flex-shrink:0"></div>
-                <div><strong style="color:var(--ink)">Infected</strong><div style="font-size:12px;color:var(--ink2)">Currently sharing — the active wave</div></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
-                <div style="width:16px;height:16px;border-radius:50%;background:#3a3f4a;border:2px solid #555;flex-shrink:0"></div>
-                <div><strong style="color:var(--ink)">Removed</strong><div style="font-size:12px;color:var(--ink2)">Has shared — no longer spreading</div></div>
-              </div>
-            </div>
-            <div class="sep"></div>
-            <div style="font-size:13px;color:var(--ink2);line-height:1.6">
-              <strong style="color:var(--ink)">Node colour</strong> = community class (Mainstream · Distributed · Fringe · Specialist).
-              <strong style="color:var(--ink)">Node size</strong> = approximate follower count.
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
-              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
-                <div style="width:10px;height:10px;border-radius:50%;background:#4d94ff;flex-shrink:0"></div>Mainstream
-              </div>
-              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
-                <div style="width:10px;height:10px;border-radius:50%;background:#ff7733;flex-shrink:0"></div>Distributed
-              </div>
-              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
-                <div style="width:10px;height:10px;border-radius:50%;background:#aa44ff;flex-shrink:0"></div>Fringe
-              </div>
-              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
-                <div style="width:10px;height:10px;border-radius:50%;background:#33ffbb;flex-shrink:0"></div>Specialist
-              </div>
-            </div>
-          </div>
+      <!-- STRUCTURAL COMPARISON BAR CHARTS -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px">
+        <div style="font-size:17px;font-weight:700;margin-bottom:4px">Structural Statistics Comparison</div>
+        <div style="font-size:14px;color:var(--ink2);margin-bottom:18px">Each metric maps directly to a variable in the paper — this is what BiGCN learns to classify.</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px" id="comparison-charts"></div>
+        <div style="margin-top:16px;font-size:13px;color:var(--ink2);background:var(--amber-bg);border:1px solid rgba(217,119,6,0.2);border-radius:6px;padding:10px 14px">
+          <strong style="color:var(--amber)">Paper connection:</strong>
+          The b⁻ matrix (false content SBM) has high <em>off-diagonal</em> entries because false content crosses polarisation classes quickly.
+          The b⁺ matrix (true content) has stronger <em>diagonal</em> entries because true content propagates within communities.
+          These two numbers are what the LP optimiser uses to compute the dropout matrix d*.
+        </div>
+      </div>
 
-        </div><!-- /sidebar -->
-      </div><!-- /graph-layout -->
     </div><!-- /view-graph -->
 
     <!-- ══ VIEW: HEATMAP ═══════════════════════════════════════════ -->
@@ -1601,16 +1510,7 @@ let rebuttalLang = 'az';
 let currentHeatmapStep = 0;
 let heatmapMode = 'alg2'; // 'control' | 'alg2'
 
-// Graph state
-let graphMode = 'alg2';   // 'control' | 'alg2'
-let graphCascade = 'false';
-let isPlaying = false;
-let simInterval = null;
-let simStep = 0;
-let graphNodes = [];
-let graphLinks = [];
-let simulation = null;
-let svg, g;
+// Graph state (hierarchical tree mode — no simulation)
 const NODE_COLORS = ['#4d94ff','#ff7733','#aa44ff','#33ffbb'];
 
 // Clock
@@ -1657,22 +1557,20 @@ function init() {
   populateFeed();
   initHeatmap();
   selectRebuttal(0);
-  initGraph();
-  // Set initial mode UI state
-  const ndEl=document.getElementById('mode-explain-nodropout');
-  const a2El=document.getElementById('mode-explain-alg2');
-  if(ndEl) ndEl.style.display='block';
-  if(a2El) a2El.style.display='none';
-  updateGraphTitles();
+  // Graph renders when its tab is first visited (via switchTab)
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ═══════════════════════════════════════════════════════════════════════
+let graphInitialised = false;
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
-  if (name === 'graph') { setTimeout(initGraph, 50); }
+  if (name === 'graph' && !graphInitialised) {
+    graphInitialised = true;
+    setTimeout(initGraph, 60);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1698,305 +1596,324 @@ function selectCascade(i) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// D3 GRAPH
+// HIERARCHICAL TREE VISUALISATION (notebook-accurate)
+// Based on visualize_trees.ipynb: hierarchy layout, depth colour gradient,
+// node size = out-degree, depth guide lines, depth profile bar charts
 // ═══════════════════════════════════════════════════════════════════════
-function initGraph() {
-  const el = document.getElementById('cascade-svg');
-  if (!el) return;
-  const W = el.parentElement.clientWidth || 600;
-  const H = el.parentElement.clientHeight || 400;
-  if (W < 10 || H < 10) return;
 
-  d3.select('#cascade-svg').selectAll('*').remove();
-  svg = d3.select('#cascade-svg').attr('width', W).attr('height', H);
+// Synthetic tree generator — matches make_synthetic_tree() from notebook
+function makeSyntheticTree(label, nNodes, seed) {
+  // Simple seeded RNG (mulberry32)
+  let s = seed >>> 0;
+  function rand() { s|=0; s=s+0x6D2B79F5|0; let t=Math.imul(s^s>>>15,1|s); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }
+  function randExp(mean) { return -mean * Math.log(1 - rand()); }
+  function randInt(lo, hi) { return lo + Math.floor(rand() * (hi - lo)); }
 
-  // bg
-  svg.append('rect').attr('width',W).attr('height',H).attr('fill','#f8fafc').attr('rx',9);
-  // grid rings
-  for(let r=60;r<Math.min(W,H)/1.8;r+=50){
-    svg.append('circle').attr('cx',W/2).attr('cy',H/2).attr('r',r)
-      .attr('fill','none').attr('stroke','rgba(0,0,0,0.05)').attr('stroke-width',1);
+  const nodes = [{id:'u0', depth:0, delay:0, outDeg:0, parent:null}];
+  const queue = ['u0'];
+  let uid = 1;
+
+  while (queue.length && uid < nNodes) {
+    const parentId = queue.shift();
+    const parent = nodes.find(n=>n.id===parentId);
+    const fanout = label==='false' ? randInt(3,7) : randInt(1,3);
+    const parentDelay = parent.delay;
+    for (let f=0; f<fanout && uid<nNodes; f++) {
+      const delay = parentDelay + randExp(label==='false' ? 2 : 8);
+      const child = {id:'u'+uid, depth:parent.depth+1, delay, outDeg:0, parent:parentId};
+      nodes.push(child);
+      parent.outDeg++;
+      queue.push('u'+uid);
+      uid++;
+    }
   }
-
-  g = svg.append('g');
-  buildGraphData();
-
-  simulation = d3.forceSimulation(graphNodes)
-    .force('link', d3.forceLink(graphLinks).id(d=>d.id).distance(45).strength(0.5))
-    .force('charge', d3.forceManyBody().strength(-80))
-    .force('center', d3.forceCenter(W/2, H/2))
-    .force('collide', d3.forceCollide(d=>d.r+5))
-    .on('tick', ticked);
-
-  renderGraph();
-
-  svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom', e=>{
-    g.attr('transform', e.transform);
-  }));
-
-  if (isPlaying) {
-    clearInterval(simInterval);
-    startPlayback();
-  }
+  return nodes;
 }
 
-function buildGraphData() {
-  const cascade = DATA.live_cascades.find(c=>c.binary_label===graphCascade) || DATA.live_cascades[0];
-  const n = Math.min(cascade.nodes, 40);
-  graphNodes = [];
-  graphLinks = [];
+// Compute hierarchy layout positions (matching hierarchy_positions() in notebook)
+// Root at top, each depth level spread evenly across width
+function hierarchyLayout(nodes, W, H, PADDING) {
+  const byDepth = {};
+  nodes.forEach(n => { (byDepth[n.depth] = byDepth[n.depth]||[]).push(n); });
+  const maxDepth = Math.max(...nodes.map(n=>n.depth));
+  const positions = {};
+  const vStep = maxDepth > 0 ? (H - PADDING*2) / maxDepth : H/2;
 
-  for(let i=0;i<n;i++){
-    const comm = Math.floor(i / (n/4));
-    graphNodes.push({
-      id: 'n'+i,
-      r: 5 + Math.log1p(Math.random()*800)*1.8,
-      community: Math.min(comm,3),
-      state: i===0 ? 'infected' : 'susceptible',
-      isFalse: graphCascade==='false'
+  Object.entries(byDepth).forEach(([d, ns]) => {
+    const depth = +d;
+    const count = ns.length;
+    ns.forEach((n, i) => {
+      const x = count === 1
+        ? W / 2
+        : PADDING + (i / (count - 1)) * (W - PADDING*2);
+      const y = PADDING + depth * vStep;
+      positions[n.id] = {x, y};
     });
-  }
-  for(let i=1;i<n;i++){
-    const src = graphNodes[Math.floor(Math.random()*i)];
-    graphLinks.push({source:'n'+src.id.slice(1), target:'n'+i, isFalse: graphCascade==='false'});
+  });
+  return {positions, maxDepth, byDepth, vStep};
+}
+
+// Depth colour: Reds for false (light → dark), Greens for true
+function depthColor(depth, maxDepth, label) {
+  const t = maxDepth > 0 ? 0.25 + 0.65 * (depth / maxDepth) : 0.5;
+  if (label === 'false') {
+    // Reds: rgb(255*t*2, 0, 0) clamped — matches cm.Reds
+    const r = Math.round(255 * (0.98 - 0.6 * (1-t)));
+    const g = Math.round(80 * (1-t));
+    const b = Math.round(60 * (1-t));
+    return `rgb(${r},${g},${b})`;
+  } else {
+    // Greens: matches cm.Greens
+    const r = Math.round(40 * (1-t));
+    const g = Math.round(140 + 110*t);
+    const b = Math.round(60 * (1-t));
+    return `rgb(${r},${g},${b})`;
   }
 }
 
-function renderGraph() {
-  if (!g) return;
-  g.selectAll('.link').remove();
-  g.selectAll('.node').remove();
+function renderHierarchicalTree(svgId, label, nNodes, seed) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) return null;
+  const W = svgEl.parentElement.clientWidth || 500;
+  const H = 320;
+  svgEl.setAttribute('height', H);
+  svgEl.setAttribute('width', W);
 
-  const isFalse = graphCascade==='false';
+  const PADDING = 40;
+  const nodes = makeSyntheticTree(label, nNodes, seed);
+  const {positions, maxDepth, byDepth, vStep} = hierarchyLayout(nodes, W, H, PADDING);
+  const maxOutDeg = Math.max(...nodes.map(n=>n.outDeg), 1);
 
-  g.selectAll('.link').data(graphLinks).enter().append('line')
-    .attr('class','link')
-    .attr('stroke', isFalse ? 'rgba(248,81,73,0.25)' : 'rgba(63,185,80,0.25)')
-    .attr('stroke-width',1.5);
+  const svg = d3.select('#'+svgId);
+  svg.selectAll('*').remove();
 
-  const node = g.selectAll('.node').data(graphNodes).enter().append('g').attr('class','node');
+  // White background
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','#fafbfc');
 
-  node.append('circle')
-    .attr('r', d=>d.r)
-    .attr('fill', d => {
-      if(d.state==='removed') return '#d1d5db';
-      return NODE_COLORS[d.community] + 'cc';
-    })
-    .attr('stroke', d=>{
-      if(d.state==='infected') return isFalse ? '#f85149' : '#3fb950';
-      if(d.state==='removed') return '#9ca3af';
-      return NODE_COLORS[d.community];
-    })
-    .attr('stroke-width', d=>d.state==='infected'?2.5:1.5)
-    .attr('opacity', d=>d.state==='removed'?0.35:0.9);
+  const g = svg.append('g');
 
-  node.on('mouseover', (ev,d) => {
-    const tt = document.getElementById('tooltip');
-    tt.style.display='block';
-    tt.style.left=(ev.clientX+14)+'px';
-    tt.style.top=(ev.clientY-12)+'px';
-    tt.innerHTML=`<strong>${CLASS_NAMES[d.community]}</strong> community<br>State: <span style="color:${d.state==='infected'?'#f85149':d.state==='removed'?'#9ca3af':'#58a6ff'}">${d.state}</span><br>Followers: ~${Math.round(Math.exp(d.r/1.8))}`;
-  }).on('mousemove', ev=>{
-    document.getElementById('tooltip').style.left=(ev.clientX+14)+'px';
-    document.getElementById('tooltip').style.top=(ev.clientY-12)+'px';
-  }).on('mouseout', ()=>{
-    document.getElementById('tooltip').style.display='none';
+  // Depth guide lines + labels (matching notebook dashed lines)
+  for (let d=0; d<=maxDepth; d++) {
+    const y = PADDING + d * vStep;
+    const nodesAtD = byDepth[d] || [];
+    g.append('line')
+      .attr('x1', 24).attr('x2', W-8)
+      .attr('y1', y).attr('y2', y)
+      .attr('stroke', '#e5e7eb')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '4,3');
+    // Label on left: depth + count (matches notebook "d=N (count)")
+    g.append('text')
+      .attr('x', 2).attr('y', y+4)
+      .attr('font-size', 9).attr('fill', '#9ca3af')
+      .attr('font-family', 'DM Mono, monospace')
+      .text(`d${d} (${nodesAtD.length})`);
+  }
+
+  // Edges
+  nodes.forEach(n => {
+    if (!n.parent) return;
+    const p = positions[n.parent], c = positions[n.id];
+    if (!p || !c) return;
+    g.append('line')
+      .attr('x1', p.x).attr('y1', p.y)
+      .attr('x2', c.x).attr('y2', c.y)
+      .attr('stroke', '#d1d5db')
+      .attr('stroke-width', 0.8)
+      .attr('opacity', 0.7);
   });
 
-  document.getElementById('graph-node-count').textContent = graphNodes.length + ' nodes · ' + graphLinks.length + ' edges';
-}
+  // Nodes
+  nodes.forEach(n => {
+    const pos = positions[n.id];
+    if (!pos) return;
+    const isRoot = n.parent === null;
+    // Size: 6 + 14 * (outDeg/maxOutDeg) — matches notebook 80+600*ratio
+    const r = isRoot ? 9 : 5 + 9 * (n.outDeg / maxOutDeg);
+    const color = isRoot ? '#1f2937' : depthColor(n.depth, maxDepth, label);
 
-const CLASS_NAMES = ['Mainstream','Distributed','Fringe','Specialist'];
+    const circle = g.append('circle')
+      .attr('cx', pos.x).attr('cy', pos.y)
+      .attr('r', r)
+      .attr('fill', color)
+      .attr('opacity', 0.88);
 
-function ticked() {
-  if(!g) return;
-  g.selectAll('.link')
-    .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
-    .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-  g.selectAll('.node').attr('transform',d=>`translate(${d.x},${d.y})`);
-}
-
-// Simulation playback — advance states
-let simSteps = [];
-let simCurrentStep = 0;
-
-const NARR_MSGS_FALSE_CONTROL = [
-  'Wave 1 — the original post is shared widely. Content jumps immediately between communities.',
-  'Wave 2 — the burst continues. Notice how nodes of different colours are being reached (cross-community spread).',
-  'Wave 3 — misinformation reaches fringe communities, amplifying its reach further.',
-  'Wave 4 — spread slows as fewer susceptible nodes remain. Final reach: 54 nodes.',
-];
-const NARR_MSGS_FALSE_ALG2 = [
-  'Wave 1 — Algorithm 2 computes the dropout matrix. Some cross-community edges are already suppressed.',
-  'Wave 2 — Off-diagonal dropout values are low. The burst into other communities is being blocked.',
-  'Wave 3 — Only within-community spread continues. Cross-community edges are now mostly suppressed.',
-  'Wave 4 — Cascade contained. Final reach: 38 nodes — 30% less than without InfoShield.',
-];
-const NARR_MSGS_TRUE_CONTROL = [
-  'Wave 1 — the announcement is shared. It spreads within Mainstream and Distributed communities.',
-  'Wave 2 — content diffuses gradually. True content follows community lines more closely.',
-  'Wave 3 — steady within-community spread continues as expected.',
-  'Wave 4 — cascade complete. Final reach: 49 nodes.',
-];
-const NARR_MSGS_TRUE_ALG2 = [
-  'Wave 1 — Algorithm 2 is active. Within-community edges (diagonal) remain near 1.0.',
-  'Wave 2 — true content flows naturally within its community. Minimal suppression applied.',
-  'Wave 3 — Algorithm 2 correctly preserves verified content spread.',
-  'Wave 4 — 88% of natural reach preserved. Algorithm 2 discriminates correctly.',
-];
-
-function getNarrMsgs() {
-  if(graphCascade==='false' && graphMode==='control') return NARR_MSGS_FALSE_CONTROL;
-  if(graphCascade==='false' && graphMode==='alg2')    return NARR_MSGS_FALSE_ALG2;
-  if(graphCascade==='true'  && graphMode==='control') return NARR_MSGS_TRUE_CONTROL;
-  return NARR_MSGS_TRUE_ALG2;
-}
-
-function updateNarrativeBar(stepIdx, totalSteps, totalReached, newInfected) {
-  const msgs = getNarrMsgs();
-  const badge = document.getElementById('narr-step-badge');
-  const main  = document.getElementById('narr-main');
-  const count = document.getElementById('narr-count');
-  if(!badge) return;
-  badge.textContent = `Step ${stepIdx+1} of ${totalSteps}`;
-  main.innerHTML = msgs[Math.min(stepIdx, msgs.length-1)] || '';
-  const color = graphCascade==='false' ? 'var(--red)' : 'var(--green)';
-  count.innerHTML = `<span style="color:${color};font-weight:700">${totalReached}</span> nodes reached`;
-}
-
-function startPlayback() {
-  const run = graphMode==='control' ? DATA.simulation_runs.control : DATA.simulation_runs.alpha_1_5;
-  simSteps = run.steps;
-  simCurrentStep = 0;
-  const speed = parseInt(document.getElementById('speed-slider').value);
-  clearInterval(simInterval);
-
-  // Reset narrative
-  const nb=document.getElementById('narr-step-badge');
-  if(nb){ nb.textContent=`Step 0 of ${simSteps.length}`; }
-  const nm=document.getElementById('narr-main');
-  if(nm) nm.innerHTML='Simulation running… watch the nodes change colour as content spreads.';
-
-  simInterval = setInterval(() => {
-    if(simCurrentStep >= simSteps.length){
-      clearInterval(simInterval);
-      isPlaying=false;
-      document.getElementById('play-btn').textContent='▶ Play';
-      document.getElementById('play-btn').classList.remove('active');
-      const nm2=document.getElementById('narr-main');
-      const run2=graphMode==='control'?DATA.simulation_runs.control:DATA.simulation_runs.alpha_1_5;
-      if(nm2) nm2.innerHTML=`Simulation complete. <strong>${run2[graphMode==='control'?'r_inf_false':'r_inf_false']} nodes</strong> reached the content.`;
-      return;
+    // Black ring on root (matches notebook scatter with facecolors='none')
+    if (isRoot) {
+      g.append('circle')
+        .attr('cx', pos.x).attr('cy', pos.y)
+        .attr('r', r + 3)
+        .attr('fill', 'none')
+        .attr('stroke', '#111827')
+        .attr('stroke-width', 2);
     }
-    const s = simSteps[simCurrentStep];
-    const reachable = s.total_reached;
-    graphNodes.forEach((n,i)=>{
-      if(i<reachable-s.new_infected) n.state='removed';
-      else if(i<reachable) n.state='infected';
-      else n.state='susceptible';
+
+    // Tooltip
+    circle.on('mouseover', (ev) => {
+      const tt = document.getElementById('tooltip');
+      tt.style.display='block';
+      tt.style.left=(ev.clientX+12)+'px';
+      tt.style.top=(ev.clientY-10)+'px';
+      tt.innerHTML=`<strong>${isRoot?'Root (original post)':'User node'}</strong><br>Depth: ${n.depth}<br>Re-shares: ${n.outDeg}<br>${isRoot?'⚫ Black ring = source tweet':''}`;
+    }).on('mousemove', ev=>{
+      document.getElementById('tooltip').style.left=(ev.clientX+12)+'px';
+      document.getElementById('tooltip').style.top=(ev.clientY-10)+'px';
+    }).on('mouseout', ()=>{
+      document.getElementById('tooltip').style.display='none';
     });
-    renderGraph();
-    simulation.alpha(0.05).restart();
-    updateNarrativeBar(simCurrentStep, simSteps.length, s.total_reached, s.new_infected);
-    simCurrentStep++;
-  }, Math.max(150, 1200/speed));
+  });
+
+  // Compute stats from full tree
+  const depthDist = {};
+  nodes.forEach(n => { depthDist[n.depth] = (depthDist[n.depth]||0)+1; });
+  const nonLeafOutDegs = nodes.filter(n=>n.outDeg>0).map(n=>n.outDeg);
+  const avgBranching = nonLeafOutDegs.length
+    ? (nonLeafOutDegs.reduce((a,b)=>a+b,0)/nonLeafOutDegs.length).toFixed(1)
+    : '0';
+  const nodesAtD1 = depthDist[1] || 0;
+
+  return {nodes, depthDist, maxDepth, avgBranching, nodesAtD1};
 }
 
-function togglePlay() {
-  const btn = document.getElementById('play-btn');
-  if(isPlaying){
-    clearInterval(simInterval);
-    isPlaying=false;
-    btn.textContent='▶ Play';
-    btn.classList.remove('active');
-  } else {
-    isPlaying=true;
-    btn.textContent='⏸ Pause';
-    btn.classList.add('active');
-    startPlayback();
+function renderDepthProfileBars(barContainerId, labelContainerId, depthDist, label) {
+  const container = document.getElementById(barContainerId);
+  const labelContainer = document.getElementById(labelContainerId);
+  if (!container) return;
+
+  const depths = Object.keys(depthDist).map(Number).sort((a,b)=>a-b);
+  const maxCount = Math.max(...depths.map(d=>depthDist[d]));
+  const H = 60;
+  const color = label === 'false' ? '#dc2626' : '#16a34a';
+  const lightColor = label === 'false' ? 'rgba(220,38,38,0.15)' : 'rgba(22,163,74,0.15)';
+
+  container.innerHTML = depths.map(d => {
+    const count = depthDist[d];
+    const pct = maxCount > 0 ? (count/maxCount*100) : 0;
+    const barH = Math.max(4, Math.round(pct/100 * H));
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px">
+      <div style="font-size:10px;color:var(--ink2);font-family:var(--mono)">${count}</div>
+      <div style="width:100%;height:${barH}px;background:${color};border-radius:3px 3px 0 0;opacity:0.85"></div>
+    </div>`;
+  }).join('');
+
+  if (labelContainer) {
+    labelContainer.innerHTML = depths.map(d =>
+      `<div style="flex:1;text-align:center;font-size:10px;color:var(--ink3);font-family:var(--mono)">d${d}</div>`
+    ).join('');
   }
 }
 
-function resetSim() {
-  clearInterval(simInterval);
-  isPlaying=false;
-  document.getElementById('play-btn').textContent='▶ Play';
-  document.getElementById('play-btn').classList.remove('active');
-  graphNodes.forEach(n=>n.state='susceptible');
-  if(graphNodes[0]) graphNodes[0].state='infected';
-  renderGraph();
-  updateRInfBars();
-  const nm=document.getElementById('narr-main');
-  if(nm) nm.innerHTML=`Press <strong>▶ Play</strong> to start the simulation.`;
-  const nb=document.getElementById('narr-step-badge');
-  if(nb) nb.textContent='Step — / —';
-  const nc=document.getElementById('narr-count');
-  if(nc) nc.innerHTML='0 nodes reached';
+function renderStatChips(containerId, stats, label) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const color = label==='false' ? 'var(--red)' : 'var(--green)';
+  const items = [
+    {label:'Total nodes', value: stats.totalNodes, desc:'cascade size (R∞)'},
+    {label:'Max depth', value: stats.maxDepth, desc:'SIR iterations'},
+    {label:'At depth 1', value: stats.nodesAtD1, desc:'first-wave burst'},
+    {label:'Avg branching', value: stats.avgBranching, desc:'per non-leaf node'},
+  ];
+  el.innerHTML = items.map(item => `
+    <div style="padding:10px 12px;border-right:1px solid var(--border2);text-align:center">
+      <div style="font-size:20px;font-weight:700;color:${color};font-family:'Bebas Neue',cursive;letter-spacing:0.5px">${item.value}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--ink);margin-top:1px">${item.label}</div>
+      <div style="font-size:10px;color:var(--ink3);margin-top:1px">${item.desc}</div>
+    </div>
+  `).join('');
 }
 
-function setMode(mode) {
-  graphMode=mode;
-  document.getElementById('btn-control').classList.toggle('active',mode==='control');
-  document.getElementById('btn-alg2').classList.toggle('active',mode==='alg2');
-  const ndEl=document.getElementById('mode-explain-nodropout');
-  const a2El=document.getElementById('mode-explain-alg2');
-  const arEl=document.getElementById('alpha-row');
-  if(ndEl) ndEl.style.display=mode==='control'?'block':'none';
-  if(a2El) a2El.style.display=mode==='alg2'?'block':'none';
-  if(arEl) arEl.style.display=mode==='alg2'?'block':'none';
-  updateGraphTitles();
-  updateRInfBars();
-  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
+function renderComparisonCharts(falseStats, trueStats) {
+  const container = document.getElementById('comparison-charts');
+  if (!container) return;
+
+  const metrics = [
+    {key:'totalNodes',   label:'Total nodes (R∞)',     desc:'What the LP minimises for false content',    paperVar:'R∞'},
+    {key:'maxDepth',     label:'Max depth',             desc:'More depth = more LP optimisation chances',  paperVar:'SIR steps'},
+    {key:'nodesAtD1',   label:'Nodes at depth 1',      desc:'Burst size in first SIR iteration',          paperVar:'|I₁|'},
+    {key:'avgBranching', label:'Avg branching factor', desc:'Must stay ≥ α for true content after dropout',paperVar:'branching ratio'},
+  ];
+
+  container.innerHTML = metrics.map(m => {
+    const fv = parseFloat(falseStats[m.key]);
+    const tv = parseFloat(trueStats[m.key]);
+    const maxV = Math.max(fv, tv, 1);
+    const fp = Math.round(fv/maxV*100);
+    const tp = Math.round(tv/maxV*100);
+    return `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px">${m.label}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">Paper variable: <em>${m.paperVar}</em></div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--red);font-weight:600">❌ False</span>
+            <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--red)">${fv}</span>
+          </div>
+          <div style="height:10px;background:rgba(220,38,38,0.1);border-radius:5px;overflow:hidden">
+            <div style="height:100%;width:${fp}%;background:var(--red);border-radius:5px;transition:width 0.5s ease"></div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--green);font-weight:600">✅ True</span>
+            <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green)">${tv}</span>
+          </div>
+          <div style="height:10px;background:rgba(22,163,74,0.1);border-radius:5px;overflow:hidden">
+            <div style="height:100%;width:${tp}%;background:var(--green);border-radius:5px;transition:width 0.5s ease"></div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--ink2);line-height:1.4">${m.desc}</div>
+      </div>
+    `;
+  }).join('');
 }
 
-function updateGraphTitles() {
-  const isFalse=graphCascade==='false', isAlg2=graphMode==='alg2';
-  const t=document.getElementById('graph-main-title'), s=document.getElementById('graph-main-sub');
-  if(!t) return;
-  if(isFalse&&!isAlg2){ t.textContent='False Content — No Dropout (Baseline)'; s.textContent='No intervention. Misinformation spreads freely across all community boundaries.'; }
-  else if(isFalse&&isAlg2){ t.textContent='False Content — Algorithm 2 Active 🛡'; s.textContent='InfoShield selectively suppresses cross-community edges to slow the false content.'; }
-  else if(!isFalse&&!isAlg2){ t.textContent='True Content — No Dropout (Baseline)'; s.textContent='Verified content spreading through the network without intervention.'; }
-  else { t.textContent='True Content — Algorithm 2 Active 🛡'; s.textContent='Algorithm 2 preserves within-community spread for verified content.'; }
+let treeStatsCache = {false: null, true: null};
+
+function initGraph() {
+  // Render both trees side by side
+  const falseResult = renderHierarchicalTree('false-tree-svg', 'false', 55, 42);
+  const trueResult  = renderHierarchicalTree('true-tree-svg',  'true',  45, 99);
+
+  if (falseResult) {
+    const fs = {
+      totalNodes: falseResult.nodes.length,
+      maxDepth: falseResult.maxDepth,
+      nodesAtD1: falseResult.nodesAtD1,
+      avgBranching: falseResult.avgBranching,
+    };
+    treeStatsCache.false = fs;
+    renderDepthProfileBars('false-depth-bars', 'false-depth-labels-bar', falseResult.depthDist, 'false');
+    renderStatChips('false-stats', fs, 'false');
+  }
+
+  if (trueResult) {
+    const ts = {
+      totalNodes: trueResult.nodes.length,
+      maxDepth: trueResult.maxDepth,
+      nodesAtD1: trueResult.nodesAtD1,
+      avgBranching: trueResult.avgBranching,
+    };
+    treeStatsCache.true = ts;
+    renderDepthProfileBars('true-depth-bars', 'true-depth-labels-bar', trueResult.depthDist, 'true');
+    renderStatChips('true-stats', ts, 'true');
+  }
+
+  if (treeStatsCache.false && treeStatsCache.true) {
+    renderComparisonCharts(treeStatsCache.false, treeStatsCache.true);
+  }
 }
 
-function selectGraphCascade(type) {
-  graphCascade=type;
-  document.getElementById('cs-false').classList.toggle('active',type==='false');
-  document.getElementById('cs-true').classList.toggle('active',type==='true');
-  clearInterval(simInterval); isPlaying=false;
-  document.getElementById('play-btn').textContent='▶ Play';
-  document.getElementById('play-btn').classList.remove('active');
-  buildGraphData();
-  renderGraph();
-  simulation.nodes(graphNodes);
-  simulation.force('link').links(graphLinks);
-  simulation.alpha(0.5).restart();
-  updateGraphTitles();
-  updateRInfBars();
-  const nm=document.getElementById('narr-main');
-  if(nm) nm.innerHTML=`Press <strong>▶ Play</strong> to watch the simulation.`;
-  const nb=document.getElementById('narr-step-badge');
-  if(nb) nb.textContent='Step — / —';
-  const nc=document.getElementById('narr-count');
-  if(nc) nc.innerHTML='0 nodes reached';
-}
-
-function onAlphaChange(){
-  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
-}
-function onSpeedChange(el){
-  document.getElementById('speed-val').textContent=el.value+'×';
-  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
-}
-
-function updateRInfBars() {
-  const run = graphMode==='control' ? DATA.simulation_runs.control : DATA.simulation_runs.alpha_1_5;
-  const trueTotal=49, falseTotal=54;
-  const tr=run.r_inf_true, fr=run.r_inf_false;
-  document.getElementById('r-true-pct').textContent=`${tr} / ${trueTotal}`;
-  document.getElementById('r-false-pct').textContent=`${fr} / ${falseTotal}`;
-  document.getElementById('r-bar-true').style.width=Math.round(tr/trueTotal*100)+'%';
-  document.getElementById('r-bar-false').style.width=Math.round(fr/falseTotal*100)+'%';
+// Stubs for functions referenced from init() — no longer needed for graph
+function updateRInfBars() {}
+function setMode() {}
+function selectGraphCascade() {}
+function updateGraphTitles() {}
+function togglePlay() {}
+function resetSim() {}
+function onAlphaChange() {}
+function onSpeedChange(el) {
+  const v = document.getElementById('speed-val');
+  if(v) v.textContent = el.value + '×';
 }
 
 // ═══════════════════════════════════════════════════════════════════════
