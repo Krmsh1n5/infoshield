@@ -3,3 +3,6 @@ data\processed\graphs\twitter15\all_graphs.pt
 data\processed\graphs\twitter16\all_graphs.pt__pycache__
 *.pyc
 *.pyc
+data/processed/graphs/
+data/processed/graphs/
+data/raw/weibo/weibotree.txt
