@@ -1020,11 +1020,11 @@ input[type=range]::-webkit-slider-thumb {
     <div class="topbar-center">
       <div class="status-badge alert" id="status-threat">
         <div class="dot"></div>
-        <span>2 Active Threats</span>
+        <span id="threat-label">2 Active Threats</span>
       </div>
-      <div class="status-badge demo">
+      <div class="status-badge demo" id="api-badge">
         <div class="dot"></div>
-        <span>WICO Dataset · Demo Mode</span>
+        <span id="api-badge-text">Connecting to API…</span>
       </div>
     </div>
 
@@ -1067,9 +1067,9 @@ input[type=range]::-webkit-slider-thumb {
               <div class="platform-title">Instagram Monitor</div>
               <div class="platform-sub">Watching public posts for conspiracy patterns using the WICO 5G & health dataset</div>
             </div>
-            <div class="live-chip live">
+            <div class="live-chip live" id="feed-live-chip">
               <div class="dot"></div>
-              ACTIVE · DEMO
+              <span id="feed-live-label">ACTIVE · DEMO</span>
             </div>
           </div>
 
@@ -1520,16 +1520,232 @@ setInterval(() => {
 document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
 
 // ═══════════════════════════════════════════════════════════════════════
-// LOAD
+// API LAYER
+// ───────────────────────────────────────────────────────────────────────
+// The dashboard talks to the Flask server at localhost:5000.
+// Every call falls back to demo_data.json when the server is unavailable
+// (offline / demo mode). The API badge in the top bar shows the state.
+//
+// HOW TO USE (live mode):
+//   1. Start the server:  python -m api.server --mock
+//   2. Open dashboard/index.html via the Flask root route  OR  any HTTP
+//      server on the same origin (e.g. python -m http.server 8080).
+//   3. The dashboard auto-detects the API and switches to live mode.
+//      The badge turns green: "API Connected · Mock Mode".
+//   4. Live cascades poll every 2 s from GET /api/v1/live_cascades.
+//   5. Clicking "Generate Rebuttal" calls POST /api/v1/rebuttal.
+//   6. Clicking "Run Simulation" calls POST /api/v1/simulate.
+//   7. The health endpoint GET /api/v1/health is checked on load and
+//      every 10 s to detect disconnects.
+//
+// Endpoints used:
+//   GET  /api/v1/health          → component status + mock_mode flag
+//   GET  /api/v1/live_cascades   → array of active cascade objects
+//   POST /api/v1/simulate        → { cascade_id, alpha, lambda, content, seed }
+//   POST /api/v1/rebuttal        → { claim, topic, language, confidence }
+// ═══════════════════════════════════════════════════════════════════════
+
+const API_BASE = 'http://localhost:5000/api/v1';
+const POLL_MS  = 2000;   // live cascade polling interval
+let   apiOnline  = false;
+let   apiMock    = true;
+let   pollTimer  = null;
+
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path, { signal: AbortSignal.timeout(3000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// Update the top-bar badge
+function setApiBadge(state) {
+  // state: 'connecting' | 'live' | 'mock' | 'offline'
+  const badge = document.getElementById('api-badge');
+  const text  = document.getElementById('api-badge-text');
+  if (!badge || !text) return;
+  badge.className = 'status-badge ' + (state === 'live' ? 'live' : state === 'mock' ? 'live' : 'demo');
+  const labels = {
+    connecting: 'Connecting to API…',
+    live:       'API Connected · Live Mode',
+    mock:       'API Connected · Mock Mode',
+    offline:    'Offline — Demo Data',
+  };
+  text.textContent = labels[state] || state;
+}
+
+// Check health and update badge; returns true if API is reachable
+async function checkHealth() {
+  try {
+    const data = await apiGet('/health');
+    apiOnline = true;
+    apiMock   = data.mock_mode;
+    setApiBadge(data.mock_mode ? 'mock' : 'live');
+    return data;
+  } catch {
+    apiOnline = false;
+    setApiBadge('offline');
+    return null;
+  }
+}
+
+// Fetch live cascades from API; fall back to demo data
+async function fetchLiveCascades() {
+  if (apiOnline) {
+    try {
+      const cascades = await apiGet('/live_cascades');
+      if (Array.isArray(cascades) && cascades.length > 0) {
+        return normaliseCascades(cascades);
+      }
+    } catch { /* fall through */ }
+  }
+  return DATA.live_cascades;   // demo fallback
+}
+
+// Normalise an API cascade object to match demo_data.json shape
+function normaliseCascades(apiCascades) {
+  return apiCascades.map(c => ({
+    id:           c.id,
+    source:       c.platform === 'telegram' ? '@telegram_channel' : '@instagram_source',
+    platform:     c.platform || 'telegram',
+    platform_live: false,
+    label:        c.label,
+    binary_label: c.binary_label,
+    confidence:   c.confidence,
+    pattern:      c.pattern || 'Unknown',
+    pattern_desc: c.pattern || '',
+    nodes:        c.nodes,
+    edges:        c.edges,
+    started:      (c.started || '').replace('Z','').split('T')[1]?.slice(0,8) || '--:--:--',
+    elapsed_min:  0,
+    claim_az:     '',
+    claim_en:     '[Claim text not available — content ingested from ' + (c.platform||'platform') + ']',
+    topic:        'general',
+    community_spread: [0,0,0,0],
+    rebuttal_az:  null,
+    rebuttal_en:  null,
+    sources:      [],
+    validator:    null,
+    mock:         c.mock,
+  }));
+}
+
+// Call POST /api/v1/simulate; fall back to demo steps
+async function runSimulateAPI(cascadeId, alpha, lam) {
+  if (apiOnline) {
+    try {
+      const result = await apiPost('/simulate', {
+        cascade_id: cascadeId,
+        alpha:      alpha,
+        lambda:     lam,
+        content:    'false',
+        seed:       42,
+      });
+      // Map API steps → demo_data step shape
+      if (result.steps && result.steps.length > 0) {
+        return result.steps.map(s => ({
+          step:          s.step,
+          d_star:        s.d_star,
+          total_reached: s.total_reached,
+          new_infected:  s.new_infected || 0,
+          lp_type:       s.lp_type || 'hard',
+        }));
+      }
+    } catch (e) {
+      console.warn('simulate API failed:', e.message);
+    }
+  }
+  // Fallback to demo data steps
+  return DATA.simulation_runs.alpha_1_5.steps;
+}
+
+// Call POST /api/v1/rebuttal; fall back to demo rebuttal
+async function runRebuttalAPI(claim, topic, language, confidence) {
+  if (apiOnline) {
+    try {
+      return await apiPost('/rebuttal', { claim, topic, language, confidence });
+    } catch (e) {
+      console.warn('rebuttal API failed:', e.message);
+    }
+  }
+  return DATA.rebuttal || null;
+}
+
+// ── Live cascade polling ────────────────────────────────────────────────
+async function pollAndRefreshFeed() {
+  const cascades = await fetchLiveCascades();
+
+  // Update threat badge count
+  const falseCount = cascades.filter(c => c.binary_label === 'false').length;
+  const threatLabel = document.getElementById('threat-label');
+  if (threatLabel) threatLabel.textContent = falseCount + ' Active Threat' + (falseCount !== 1 ? 's' : '');
+  const threatBadge = document.getElementById('status-threat');
+  if (threatBadge) threatBadge.className = 'status-badge ' + (falseCount > 0 ? 'alert' : 'live');
+
+  // Update feed chip label
+  const feedLabel = document.getElementById('feed-live-label');
+  if (feedLabel) feedLabel.textContent = apiOnline ? 'ACTIVE · LIVE API' : 'ACTIVE · DEMO DATA';
+
+  // Refresh the feed tab with live data
+  refreshFeedWithCascades(cascades);
+}
+
+function refreshFeedWithCascades(cascades) {
+  // Merge API cascades into DATA.live_cascades (keep demo enriched fields if same id)
+  const merged = cascades.map(c => {
+    const existing = DATA.live_cascades.find(d => d.id === c.id);
+    return existing ? { ...c, ...existing } : c;
+  });
+  DATA.live_cascades = merged;
+  populateFeed();
+  // Refresh rebuttal panel if it uses a cascade that changed
+  if (currentRebuttalData) {
+    const updated = DATA.live_cascades.find(c => c.id === currentRebuttalData.id);
+    if (updated) currentRebuttalData = updated;
+  }
+}
+
+// Start polling loop
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollAndRefreshFeed();   // immediate first poll
+  pollTimer = setInterval(pollAndRefreshFeed, POLL_MS);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// LOAD — boot sequence
 // ═══════════════════════════════════════════════════════════════════════
 async function loadData() {
+  // 1. Load demo data as guaranteed baseline
   try {
     const r = await fetch('./demo_data.json');
     DATA = await r.json();
-  } catch(e) {
+  } catch {
     DATA = buildFallback();
   }
+
+  // 2. Check if API is available
+  setApiBadge('connecting');
+  await checkHealth();
+
+  // 3. Init UI
   init();
+
+  // 4. Start live polling (works in both online and offline mode)
+  startPolling();
+
+  // 5. Re-check health every 10 s (detect server restart / disconnect)
+  setInterval(checkHealth, 10000);
 }
 
 function buildFallback() {
@@ -2093,6 +2309,101 @@ function sendValidator(btn) {
   btn.classList.add('sent');
   btn.disabled=true;
   setTimeout(()=>{btn.textContent='Send →';btn.classList.remove('sent');btn.disabled=false;}, 4000);
+}
+
+// ── API-powered rebuttal regeneration ─────────────────────────────────
+async function regenRebuttal() {
+  const btn = document.getElementById('regen-btn');
+  const rebuttalEl = document.getElementById('rb-rebuttal');
+  const c = currentRebuttalData;
+  if (!c) return;
+
+  if (btn) { btn.textContent = '⟳ Calling…'; btn.disabled = true; }
+  if (rebuttalEl) rebuttalEl.style.opacity = '0.4';
+
+  const claim = rebuttalLang === 'az' ? (c.claim_az || c.claim_en) : (c.claim_en || c.claim_az);
+  const result = await runRebuttalAPI(claim, c.topic || 'health', 'az', c.confidence || 0.9);
+
+  if (result) {
+    // Patch the cascade data with fresh rebuttal
+    c.rebuttal_az = result.rebuttal || c.rebuttal_az;
+    c.rebuttal_en = result.rebuttal || c.rebuttal_en;
+    c.sources     = result.sources  || c.sources;
+    if (result.formatted) {
+      c._formatted = result.formatted;
+    }
+    // Re-render
+    if (rebuttalEl) rebuttalEl.textContent = rebuttalLang === 'az' ? c.rebuttal_az : c.rebuttal_en;
+    const srcEl = document.getElementById('rb-sources');
+    if (srcEl) srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+    const apiNote = result.mock ? ' (mock)' : ' (live API)';
+    if (btn) { btn.textContent = '✓ Updated' + apiNote; btn.disabled = false; }
+    setTimeout(() => { if(btn){ btn.textContent='⟳ API'; btn.disabled=false; } }, 3000);
+  } else {
+    if (btn) { btn.textContent = '⟳ API'; btn.disabled = false; }
+  }
+  if (rebuttalEl) rebuttalEl.style.opacity = '1';
+}
+
+// Override showFormat to use API-returned formatted text when available
+const _origShowFormat = showFormat;
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c = currentRebuttalData;
+  if (!c) return;
+  // Prefer live API formatted text, then static formatters
+  const apiFormatted = c._formatted && c._formatted[platform];
+  const text = apiFormatted || PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent = text;
+  box.classList.add('visible');
+}
+
+// ── API-powered rebuttal regeneration ─────────────────────────────────
+async function regenRebuttal() {
+  const btn = document.getElementById('regen-btn');
+  const rebuttalEl = document.getElementById('rb-rebuttal');
+  const c = currentRebuttalData;
+  if (!c) return;
+
+  if (btn) { btn.textContent = '⟳ Calling…'; btn.disabled = true; }
+  if (rebuttalEl) rebuttalEl.style.opacity = '0.4';
+
+  const claim = rebuttalLang === 'az' ? (c.claim_az || c.claim_en) : (c.claim_en || c.claim_az);
+  const result = await runRebuttalAPI(claim || 'test claim', c.topic || 'health', 'az', c.confidence || 0.9);
+
+  if (result) {
+    c.rebuttal_az = result.rebuttal || c.rebuttal_az;
+    c.rebuttal_en = result.rebuttal || c.rebuttal_en;
+    c.sources     = result.sources  || c.sources;
+    if (result.formatted) c._formatted = result.formatted;
+
+    if (rebuttalEl) rebuttalEl.textContent = rebuttalLang === 'az' ? c.rebuttal_az : c.rebuttal_en;
+    const srcEl = document.getElementById('rb-sources');
+    if (srcEl) srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+    const apiNote = result.mock ? ' (mock)' : ' (live)';
+    if (btn) { btn.textContent = '✓ Updated' + apiNote; btn.disabled = false; }
+    setTimeout(() => { if(btn){ btn.textContent='⟳ API'; btn.disabled=false; } }, 3000);
+  } else {
+    if (btn) { btn.textContent = '⟳ API'; btn.disabled = false; }
+  }
+  if (rebuttalEl) rebuttalEl.style.opacity = '1';
+}
+
+// showFormat: prefer API-returned formatted text when available
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c = currentRebuttalData;
+  if (!c) return;
+  const apiFormatted = c._formatted && c._formatted[platform];
+  const text = apiFormatted || PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent = text;
+  box.classList.add('visible');
 }
 
 // ═══════════════════════════════════════════════════════════════════════
