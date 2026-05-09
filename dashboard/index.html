@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InfoShield — Live Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   INFOSHIELD DASHBOARD — Presentation-friendly redesign
+   Theme: Clean light, crisp editorial, large readable type
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:       #f4f6f9;
+  --surface:  #ffffff;
+  --surface2: #f0f3f7;
+  --border:   #dde2ea;
+  --border2:  #e8ecf1;
+
+  --ink:      #111827;
+  --ink2:     #4b5563;
+  --ink3:     #9ca3af;
+
+  --blue:     #2563eb;
+  --blue-bg:  rgba(37,99,235,0.07);
+  --green:    #16a34a;
+  --green-bg: rgba(22,163,74,0.07);
+  --red:      #dc2626;
+  --red-bg:   rgba(220,38,38,0.07);
+  --amber:    #d97706;
+  --amber-bg: rgba(217,119,6,0.07);
+  --purple:   #7c3aed;
+
+  --font:     'DM Sans', sans-serif;
+  --mono:     'DM Mono', monospace;
+  --display:  'Bebas Neue', cursive;
+
+  --radius:   10px;
+  --radius-sm: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── Layout ─────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-badge {
+  background: var(--blue);
+  color: #ffffff;
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 1px;
+  padding: 4px 10px 2px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.3px;
+}
+.brand-sub {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 1px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+  max-width: 600px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.status-badge .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-badge.live { background: var(--green-bg); border-color: rgba(63,185,80,0.3); color: var(--green); }
+.status-badge.live .dot { background: var(--green); animation: pulse 2s infinite; }
+.status-badge.alert { background: var(--red-bg); border-color: rgba(248,81,73,0.3); color: var(--red); }
+.status-badge.alert .dot { background: var(--red); animation: pulse 0.7s infinite; }
+.status-badge.demo { background: var(--amber-bg); border-color: rgba(227,179,65,0.3); color: var(--amber); }
+.status-badge.demo .dot { background: var(--amber); }
+
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.8); }
+}
+
+#clock {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink2);
+  flex-shrink: 0;
+}
+
+/* ── Tab navigation ──────────────────────────────────────────── */
+#tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+  top: 1px;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.tab-icon { font-size: 15px; }
+.tab-num {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--red-bg);
+  color: var(--red);
+  font-weight: 600;
+}
+.tab-coming {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+/* ── Content area ────────────────────────────────────────────── */
+#content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 24px;
+  display: none;
+}
+.view.active { display: block; }
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.card + .card { margin-top: 16px; }
+
+.card-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.card-desc {
+  font-size: 14px;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+
+/* ── Grid helpers ────────────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 1 — LIVE FEED (Instagram active, others teased)
+   ════════════════════════════════════════════════════════════════ */
+
+.platform-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.platform-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.platform-icon.instagram { background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.platform-icon.telegram  { background: #229ed9; }
+.platform-icon.whatsapp  { background: #25d366; }
+.platform-icon.facebook  { background: #1877f2; }
+
+.platform-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.platform-sub {
+  font-size: 14px;
+  color: var(--ink2);
+  margin-top: 2px;
+}
+
+.live-chip {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.live-chip.live { background: var(--green-bg); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+.live-chip.live .dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite; }
+.live-chip.demo-chip { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(227,179,65,0.3); font-size:11px;}
+
+/* Cascade cards */
+.cascade-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.cascade-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--red);
+}
+.cascade-card.true::before { background: var(--green); }
+.cascade-card:hover { border-color: var(--blue); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.cascade-card.selected { border-color: var(--blue); background: rgba(88,166,255,0.05); }
+
+.cascade-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cascade-verdict {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.cascade-verdict.false { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.cascade-verdict.true  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+
+.cascade-claim {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  flex: 1;
+}
+.cascade-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.meta-chip {
+  font-size: 12px;
+  color: var(--ink2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.meta-chip strong { color: var(--ink); }
+
+.confidence-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.conf-label { font-size: 12px; color: var(--ink2); white-space: nowrap; }
+.conf-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.conf-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--amber), var(--red));
+  transition: width 0.5s ease;
+}
+.conf-fill.green { background: linear-gradient(90deg, var(--green), #58a6ff); }
+.conf-pct { font-size: 14px; font-weight: 700; color: var(--amber); width: 40px; text-align: right; }
+.conf-pct.green { color: var(--green); }
+
+/* Other platforms — "coming soon" tease */
+.platform-tease {
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 0.65;
+}
+.tease-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.tease-text .tease-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.tease-text .tease-sub  { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+.tease-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 2 — GRAPH (D3 cascade viz)
+   ════════════════════════════════════════════════════════════════ */
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  height: calc(100vh - 130px);
+}
+
+.graph-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.graph-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.graph-panel-header h3 { font-size: 16px; font-weight: 600; }
+.graph-panel-header p { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+
+#cascade-svg { flex: 1; display: block; }
+
+.graph-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* Controls */
+.ctrl-group { }
+.ctrl-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 10px;
+}
+
+.select-wrap {
+  position: relative;
+}
+.select-wrap select {
+  width: 100%;
+  appearance: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 32px 9px 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.select-wrap select:focus { border-color: var(--blue); }
+.select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink2);
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.btn-row { display: flex; gap: 8px; }
+.btn {
+  flex: 1;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--ink);
+}
+.btn:hover { border-color: var(--blue); color: var(--blue); }
+.btn.active { background: var(--blue); border-color: var(--blue); color: #000; }
+.btn.danger.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.speed-row label { font-size: 13px; color: var(--ink2); flex-shrink: 0; }
+input[type=range] {
+  flex: 1;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  background: var(--blue);
+  cursor: pointer;
+}
+.speed-val { font-family: var(--mono); font-size: 13px; color: var(--blue); width: 28px; text-align: right; }
+
+/* R∞ */
+.stat-big {
+  text-align: center;
+  padding: 14px 0;
+}
+.stat-big-num {
+  font-family: var(--display);
+  font-size: 52px;
+  line-height: 1;
+  color: var(--ink);
+}
+.stat-big-num.red { color: var(--red); }
+.stat-big-num.green { color: var(--green); }
+.stat-big-label {
+  font-size: 12px;
+  color: var(--ink2);
+  margin-top: 4px;
+}
+
+.r-bar-block { margin-bottom: 10px; }
+.r-bar-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.r-bar-lbl { font-size: 13px; font-weight: 600; }
+.r-bar-lbl.true { color: var(--green); }
+.r-bar-lbl.false { color: var(--red); }
+.r-bar-pct { font-family: var(--mono); font-size: 13px; color: var(--ink2); }
+.r-bar-track { height: 8px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+.r-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+.r-bar-fill.true  { background: linear-gradient(90deg, #1a5f2a, var(--green)); }
+.r-bar-fill.false { background: linear-gradient(90deg, #6a1b1a, var(--red)); }
+
+.explain-box {
+  background: var(--blue-bg);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.explain-box strong { color: var(--blue); }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 3 — DROPOUT HEATMAP
+   ════════════════════════════════════════════════════════════════ */
+.heatmap-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.heatmap-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.heatmap-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.heatmap-desc {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.heatmap-grid-wrap {
+  position: relative;
+}
+.hm-corner { position: absolute; top: 0; left: 0; font-size: 10px; color: var(--ink3); font-family: var(--mono); }
+
+.hm-col-labels {
+  display: flex;
+  padding-left: 72px;
+  margin-bottom: 4px;
+}
+.hm-col-lbl {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink2);
+  font-weight: 500;
+}
+
+.hm-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.hm-row-lbl {
+  width: 72px;
+  font-size: 11px;
+  color: var(--ink2);
+  font-weight: 500;
+  padding-right: 8px;
+  text-align: right;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.hm-cells {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.hm-cell {
+  flex: 1;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.5s ease;
+  cursor: pointer;
+  position: relative;
+}
+.hm-cell:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.step-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.step-btn {
+  padding: 7px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.step-btn:hover { border-color: var(--blue); color: var(--blue); }
+.step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.step-indicator {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.step-dot {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border2);
+  transition: all 0.3s;
+  cursor: pointer;
+  flex: 1;
+}
+.step-dot.done  { background: var(--blue); opacity: 0.5; }
+.step-dot.active { background: var(--blue); flex: 2; }
+
+.lp-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.lp-tag.hard     { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.lp-tag.softened { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(227,179,65,0.3); }
+.lp-tag.control  { background: var(--surface2); color: var(--ink2); border: 1px solid var(--border); }
+
+/* Compare panel */
+.compare-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border2);
+}
+.compare-item:last-child { border-bottom: none; }
+.compare-label { font-size: 14px; font-weight: 500; }
+.compare-vals { display: flex; gap: 20px; text-align: right; }
+.compare-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+.compare-val.before { color: var(--red); }
+.compare-val.after  { color: var(--green); }
+.compare-val-lbl    { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW 4 — COUNTER-NARRATIVE
+   ════════════════════════════════════════════════════════════════ */
+.cn-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.detection-card {
+  background: var(--surface2);
+  border: 1px solid rgba(248,81,73,0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.detection-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.detection-emoji { font-size: 22px; }
+.detection-title { font-size: 18px; font-weight: 700; color: var(--red); }
+.detection-subtitle { font-size: 13px; color: var(--ink2); margin-top: 2px; }
+
+.claim-block {
+  background: var(--bg);
+  border-left: 3px solid var(--red);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 14px;
+}
+.claim-lang-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.lang-btn {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  transition: all 0.2s;
+}
+.lang-btn.active { background: var(--blue-bg); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+
+.claim-text {
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.rebuttal-card {
+  background: var(--surface);
+  border: 1px solid rgba(63,185,80,0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.rebuttal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rebuttal-title { font-size: 16px; font-weight: 700; color: var(--green); }
+
+.rebuttal-text {
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+
+.sources-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.source-chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  background: var(--blue-bg);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 10px;
+  color: var(--blue);
+  font-family: var(--mono);
+}
+
+.platform-formats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.pf-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pf-btn:hover { border-color: var(--blue); color: var(--blue); }
+.pf-btn.active { background: var(--blue-bg); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+.pf-btn .pf-icon { font-size: 14px; }
+
+.formatted-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  display: none;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.formatted-box.visible { display: block; }
+
+/* Validator section */
+.validator-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.validator-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.validator-name { font-size: 15px; font-weight: 600; }
+.validator-meta { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+.send-btn {
+  margin-left: auto;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--green-bg);
+  border: 1px solid rgba(63,185,80,0.3);
+  color: var(--green);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.send-btn:hover { background: rgba(63,185,80,0.2); }
+.send-btn.sent  { background: var(--surface2); color: var(--ink2); border-color: var(--border); cursor: default; }
+
+/* ════════════════════════════════════════════════════════════════
+   Scrollbar
+   ════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Section dividers */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.sep { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  line-height: 1.6;
+  max-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* Cascade selector (graph view) */
+.cascade-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cs-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.cs-btn.false.active { background: var(--red-bg); border-color: rgba(248,81,73,0.4); color: var(--red); }
+.cs-btn.true.active  { background: var(--green-bg); border-color: rgba(63,185,80,0.4); color: var(--green); }
+.cs-btn:hover { border-color: var(--blue); }
+
+/* Insight callout */
+.insight {
+  background: var(--amber-bg);
+  border: 1px solid rgba(227,179,65,0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.insight .insight-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand">
+      <div class="brand-badge">IS</div>
+      <div>
+        <div class="brand-name">InfoShield</div>
+        <div class="brand-sub">Misinformation Suppression System · UFAZ Research Demo</div>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="status-badge alert" id="status-threat">
+        <div class="dot"></div>
+        <span>2 Active Threats</span>
+      </div>
+      <div class="status-badge demo">
+        <div class="dot"></div>
+        <span>WICO Dataset · Demo Mode</span>
+      </div>
+    </div>
+
+    <div id="clock" style="font-family:var(--mono);font-size:15px;color:var(--ink2)">--:--:--</div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs">
+    <div class="tab active" data-view="feed" onclick="switchTab('feed')">
+      <span class="tab-icon">📡</span>
+      Live Feed
+      <span class="tab-num">2</span>
+    </div>
+    <div class="tab" data-view="graph" onclick="switchTab('graph')">
+      <span class="tab-icon">🕸</span>
+      Cascade Graph
+    </div>
+    <div class="tab" data-view="heatmap" onclick="switchTab('heatmap')">
+      <span class="tab-icon">🔢</span>
+      d* Heatmap
+    </div>
+    <div class="tab" data-view="rebuttal" onclick="switchTab('rebuttal')">
+      <span class="tab-icon">✍️</span>
+      Counter-Narrative
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ══ VIEW: LIVE FEED ══════════════════════════════════════════ -->
+    <div class="view active" id="view-feed">
+      <div style="max-width:900px;margin:0 auto">
+
+        <!-- Instagram — LIVE -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="platform-header">
+            <div class="platform-icon instagram">📷</div>
+            <div>
+              <div class="platform-title">Instagram Monitor</div>
+              <div class="platform-sub">Watching public posts for conspiracy patterns using the WICO 5G & health dataset</div>
+            </div>
+            <div class="live-chip live">
+              <div class="dot"></div>
+              ACTIVE · DEMO
+            </div>
+          </div>
+
+          <div class="section-title">Detected Cascades</div>
+
+          <!-- False cascade 1 -->
+          <div class="cascade-card" id="cc-0" onclick="selectCascade(0)">
+            <div class="cascade-top">
+              <span class="cascade-verdict false">FALSE</span>
+              <div class="cascade-claim" id="cc0-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc0-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc0-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc0-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc0-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill" id="cc0-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct" id="cc0-conf-pct">—</span>
+            </div>
+          </div>
+
+          <!-- False cascade 2 -->
+          <div class="cascade-card" id="cc-1" onclick="selectCascade(1)">
+            <div class="cascade-top">
+              <span class="cascade-verdict false">FALSE</span>
+              <div class="cascade-claim" id="cc1-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc1-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc1-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc1-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc1-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill" id="cc1-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct" id="cc1-conf-pct">—</span>
+            </div>
+          </div>
+
+          <!-- True cascade -->
+          <div class="cascade-card true" id="cc-2" onclick="selectCascade(2)">
+            <div class="cascade-top">
+              <span class="cascade-verdict true">VERIFIED</span>
+              <div class="cascade-claim" id="cc2-claim">Loading...</div>
+            </div>
+            <div class="cascade-meta">
+              <div class="meta-chip">👤 <strong id="cc2-source">—</strong></div>
+              <div class="meta-chip">🌐 <strong id="cc2-pattern">—</strong></div>
+              <div class="meta-chip">👥 <strong id="cc2-nodes">—</strong> nodes</div>
+              <div class="meta-chip">⏱ Started <strong id="cc2-time">—</strong></div>
+            </div>
+            <div class="confidence-row">
+              <span class="conf-label">BiGCN Confidence</span>
+              <div class="conf-bar"><div class="conf-fill green" id="cc2-conf-fill" style="width:0%"></div></div>
+              <span class="conf-pct green" id="cc2-conf-pct">—</span>
+            </div>
+          </div>
+
+          <div class="insight" style="margin-top:16px">
+            <div class="insight-label">📊 Key Insight</div>
+            False content spreads <strong>cross-community</strong> (Wide Burst pattern), while verified content
+            stays within communities (Slow Diffusion). This asymmetry powers InfoShield's
+            dropout algorithm.
+          </div>
+        </div>
+
+        <!-- Other platforms — tease -->
+        <div class="section-title" style="margin-bottom:12px">Other Platforms <span style="font-size:11px;color:var(--ink3);margin-left:8px;font-weight:400;text-transform:none;letter-spacing:0">(coming soon — tokens pending)</span></div>
+
+        <div class="grid-2" style="gap:10px">
+          <div class="platform-tease">
+            <div class="tease-icon telegram">💬</div>
+            <div class="tease-text">
+              <div class="tease-name">Telegram</div>
+              <div class="tease-sub">Monitor public channels via Bot API</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#25d366;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">💚</div>
+            <div class="tease-text">
+              <div class="tease-name">WhatsApp</div>
+              <div class="tease-sub">Twilio Business API integration</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#1877f2;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">🔵</div>
+            <div class="tease-text">
+              <div class="tease-name">Facebook</div>
+              <div class="tease-sub">Graph API public page monitoring</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+          <div class="platform-tease">
+            <div class="tease-icon" style="background:#1d9bf0;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">🐦</div>
+            <div class="tease-text">
+              <div class="tease-name">X / Twitter</div>
+              <div class="tease-sub">Streaming API · WICO15/16 trained</div>
+            </div>
+            <div class="tease-badge">🔑 Token needed</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ VIEW: CASCADE GRAPH ═════════════════════════════════════ -->
+    <div class="view" id="view-graph">
+
+      <!-- TOP EXPLAINER STRIP -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:16px">
+        <div style="font-size:19px;font-weight:700;margin-bottom:8px">What am I looking at?</div>
+        <div style="font-size:15px;color:var(--ink2);line-height:1.7;max-width:900px">
+          This graph shows how a piece of content — a rumour, a news story — spreads through a social network.
+          Each <strong style="color:var(--ink)">circle (node)</strong> is a user.
+          Each <strong style="color:var(--ink)">line (edge)</strong> is a share or retweet.
+          Circles are colour-coded by their <strong style="color:var(--ink)">community</strong> — a cluster of users who interact mostly with each other.
+          Press <strong style="color:var(--blue)">▶ Play</strong> to watch the content spread step by step through the network.
+        </div>
+      </div>
+
+      <div class="graph-layout">
+        <!-- GRAPH -->
+        <div class="graph-panel">
+          <div class="graph-panel-header">
+            <div>
+              <h3 id="graph-main-title">False Content Cascade — No Dropout</h3>
+              <p id="graph-main-sub">Watch how misinformation jumps across community boundaries</p>
+            </div>
+            <div id="graph-node-count" style="font-family:var(--mono);font-size:13px;color:var(--ink2)">0 nodes</div>
+          </div>
+          <svg id="cascade-svg"></svg>
+
+          <!-- LIVE NARRATIVE BAR — updates as sim runs -->
+          <div id="narrative-bar" style="padding:14px 18px;border-top:1px solid var(--border);background:var(--surface2);flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <div id="narr-step-badge" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-family:var(--mono);font-size:13px;color:var(--ink2);flex-shrink:0">
+                Step — / —
+              </div>
+              <div id="narr-main" style="font-size:15px;color:var(--ink);flex:1;min-width:200px">
+                Press <strong>▶ Play</strong> to start the simulation.
+              </div>
+              <div id="narr-count" style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink2);flex-shrink:0;text-align:right">
+                0 nodes reached
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="graph-sidebar">
+
+          <!-- What to show -->
+          <div class="card">
+            <div style="font-size:15px;font-weight:700;margin-bottom:10px">1 · Choose content type</div>
+            <div style="font-size:13px;color:var(--ink2);margin-bottom:10px;line-height:1.5">
+              See how <strong style="color:var(--red)">false content</strong> (a 5G conspiracy) spreads differently from
+              <strong style="color:var(--green)">true content</strong> (a government announcement).
+            </div>
+            <div class="cascade-selector">
+              <div class="cs-btn false active" id="cs-false" onclick="selectGraphCascade('false')">🔴 False Content</div>
+              <div class="cs-btn true" id="cs-true" onclick="selectGraphCascade('true')">🟢 True Content</div>
+            </div>
+          </div>
+
+          <!-- Mode toggle with explanation -->
+          <div class="card">
+            <div style="font-size:15px;font-weight:700;margin-bottom:10px">2 · Choose simulation mode</div>
+
+            <div id="mode-explain-nodropout" style="background:var(--red-bg);border:1px solid rgba(248,81,73,0.2);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--ink2)">
+              <div style="font-weight:700;color:var(--red);margin-bottom:4px">📡 No Dropout — Baseline</div>
+              <strong style="color:var(--ink)">No intervention.</strong> Every share is passed through as-is.
+              This is what happens today on social platforms — content spreads freely
+              across all community boundaries. False content reaches <strong style="color:var(--red)">54 nodes</strong> on average.
+            </div>
+
+            <div id="mode-explain-alg2" style="background:var(--green-bg);border:1px solid rgba(63,185,80,0.2);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.6;color:var(--ink2);display:none">
+              <div style="font-weight:700;color:var(--green);margin-bottom:4px">🛡 Algorithm 2 — InfoShield Active</div>
+              <strong style="color:var(--ink)">Selective suppression.</strong> At each spread step, InfoShield
+              solves a <strong style="color:var(--ink)">linear programme</strong> to find the minimum dropout
+              rates that slow false content while keeping true content flowing.
+              Cross-community edges (where false content travels) get a low pass probability.
+              Result: false content drops to <strong style="color:var(--green)">38 nodes</strong> — a <strong style="color:var(--green)">30% reduction</strong>.
+            </div>
+
+            <div class="btn-row" style="margin-bottom:12px">
+              <button class="btn active" id="btn-control" onclick="setMode('control')">No Dropout</button>
+              <button class="btn" id="btn-alg2" onclick="setMode('alg2')">🛡 Algorithm 2</button>
+            </div>
+
+            <div id="alpha-row" style="display:none">
+              <div style="font-size:12px;color:var(--ink2);margin-bottom:6px">
+                <strong style="color:var(--ink)">α (alpha)</strong> controls how much true content must be preserved.
+                Higher α = stronger protection for true content.
+              </div>
+              <div class="select-wrap">
+                <select id="alpha-select" onchange="onAlphaChange()">
+                  <option value="1.5" selected>α = 1.5 — recommended balance</option>
+                  <option value="2.0">α = 2.0 — protect true content more</option>
+                  <option value="1.0">α = 1.0 — suppress false more aggressively</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Play controls -->
+          <div class="card">
+            <div style="font-size:15px;font-weight:700;margin-bottom:6px">3 · Run the simulation</div>
+            <div style="font-size:13px;color:var(--ink2);margin-bottom:12px;line-height:1.5">
+              Each step represents one <strong style="color:var(--ink)">BFS wave</strong> — all nodes
+              that newly share the content in that round. Watch nodes change colour as the content spreads.
+            </div>
+
+            <div class="speed-row" style="margin-bottom:12px">
+              <label style="font-size:13px;color:var(--ink2)">Speed</label>
+              <input type="range" id="speed-slider" min="1" max="8" value="3" oninput="onSpeedChange(this)">
+              <span class="speed-val" id="speed-val">3×</span>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn active" id="play-btn" onclick="togglePlay()">▶ Play</button>
+              <button class="btn" onclick="resetSim()">↺ Reset</button>
+            </div>
+          </div>
+
+          <!-- Results card -->
+          <div class="card">
+            <div style="font-size:15px;font-weight:700;margin-bottom:12px">Final spread (R∞)</div>
+            <div style="font-size:13px;color:var(--ink2);margin-bottom:12px;line-height:1.5">
+              R∞ is the total number of users who received the content by the end of the simulation.
+            </div>
+            <div class="r-bar-block">
+              <div class="r-bar-label-row">
+                <span class="r-bar-lbl true">✓ True content</span>
+                <span class="r-bar-pct" id="r-true-pct">43 / 49</span>
+              </div>
+              <div class="r-bar-track"><div class="r-bar-fill true" id="r-bar-true" style="width:88%"></div></div>
+            </div>
+            <div class="r-bar-block" style="margin-top:10px">
+              <div class="r-bar-label-row">
+                <span class="r-bar-lbl false">✗ False content</span>
+                <span class="r-bar-pct" id="r-false-pct">38 / 54</span>
+              </div>
+              <div class="r-bar-track"><div class="r-bar-fill false" id="r-bar-false" style="width:70%"></div></div>
+            </div>
+            <div class="explain-box" style="margin-top:12px" id="result-explain">
+              With <strong>α = 1.5</strong>, Algorithm 2 cuts false content reach by
+              <strong>30%</strong> while preserving <strong>88%</strong> of true content flow.
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div class="card">
+            <div style="font-size:15px;font-weight:700;margin-bottom:12px">Node colours</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+                <div style="width:16px;height:16px;border-radius:50%;background:#58a6ff;border:2px solid #4488ee;flex-shrink:0"></div>
+                <div><strong style="color:var(--ink)">Susceptible</strong><div style="font-size:12px;color:var(--ink2)">Has not seen the content yet</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+                <div style="width:16px;height:16px;border-radius:50%;background:#f85149;border:2px solid #cc2222;flex-shrink:0"></div>
+                <div><strong style="color:var(--ink)">Infected</strong><div style="font-size:12px;color:var(--ink2)">Currently sharing — the active wave</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+                <div style="width:16px;height:16px;border-radius:50%;background:#3a3f4a;border:2px solid #555;flex-shrink:0"></div>
+                <div><strong style="color:var(--ink)">Removed</strong><div style="font-size:12px;color:var(--ink2)">Has shared — no longer spreading</div></div>
+              </div>
+            </div>
+            <div class="sep"></div>
+            <div style="font-size:13px;color:var(--ink2);line-height:1.6">
+              <strong style="color:var(--ink)">Node colour</strong> = community class (Mainstream · Distributed · Fringe · Specialist).
+              <strong style="color:var(--ink)">Node size</strong> = approximate follower count.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:#4d94ff;flex-shrink:0"></div>Mainstream
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:#ff7733;flex-shrink:0"></div>Distributed
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:#aa44ff;flex-shrink:0"></div>Fringe
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2)">
+                <div style="width:10px;height:10px;border-radius:50%;background:#33ffbb;flex-shrink:0"></div>Specialist
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /sidebar -->
+      </div><!-- /graph-layout -->
+    </div><!-- /view-graph -->
+
+    <!-- ══ VIEW: HEATMAP ═══════════════════════════════════════════ -->
+    <div class="view" id="view-heatmap">
+      <div style="max-width:1100px;margin:0 auto">
+
+        <div class="card" style="margin-bottom:20px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px">d* Dropout Matrix — What InfoShield Does</div>
+          <div style="font-size:15px;color:var(--ink2);line-height:1.6">
+            Each cell (row u → col v) shows the probability that content is <strong>allowed to pass</strong>
+            from community u to community v. <span style="color:var(--green)">Green = 1.0 (keep all)</span>,
+            <span style="color:var(--red)">Red = 0.0 (suppress all)</span>.
+            The algorithm keeps diagonal cells high (within-community flow stays intact)
+            and suppresses off-diagonal cells (cross-community false content is blocked).
+          </div>
+        </div>
+
+        <div class="heatmap-layout" style="margin-bottom:20px">
+
+          <!-- Control (all 1s) -->
+          <div class="heatmap-container">
+            <div class="heatmap-title">Without InfoShield <span style="color:var(--red);font-size:14px;margin-left:8px">Uncontrolled</span></div>
+            <div class="heatmap-desc">All edges kept — false content spreads freely across all community boundaries.</div>
+            <div id="heatmap-control"></div>
+          </div>
+
+          <!-- Algorithm 2 with stepper -->
+          <div class="heatmap-container">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div class="heatmap-title">With Algorithm 2 <span style="color:var(--green);font-size:14px;margin-left:8px">Active</span></div>
+              <div id="hm-lp-tag" class="lp-tag hard">HARD LP</div>
+            </div>
+            <div class="heatmap-desc">Dropout matrix d* computed by LP at each BFS step. Low off-diagonal values suppress cross-community spread.</div>
+            <div id="heatmap-alg2"></div>
+            <div class="step-controls" style="margin-top:14px">
+              <button class="step-btn" id="step-prev" onclick="stepHeatmap(-1)" disabled>← Prev</button>
+              <div class="step-indicator" id="step-indicator"></div>
+              <button class="step-btn" id="step-next" onclick="stepHeatmap(1)">Next →</button>
+            </div>
+            <div style="margin-top:10px;font-size:13px;color:var(--ink2)" id="step-desc">Step 0 of 4</div>
+          </div>
+        </div>
+
+        <!-- Results comparison -->
+        <div class="card">
+          <div style="font-size:17px;font-weight:700;margin-bottom:16px">Results: Control vs. Algorithm 2</div>
+          <div class="grid-3">
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">R∞ True Content</div>
+                  <div style="font-size:12px;color:var(--ink2)">Expected final cascade size</div>
+                </div>
+                <div class="compare-vals">
+                  <div>
+                    <div class="compare-val before">49</div>
+                    <div class="compare-val-lbl">no dropout</div>
+                  </div>
+                  <div>
+                    <div class="compare-val after">43</div>
+                    <div class="compare-val-lbl">α = 1.5</div>
+                  </div>
+                </div>
+              </div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">R∞ False Content</div>
+                  <div style="font-size:12px;color:var(--ink2)">Expected final cascade size</div>
+                </div>
+                <div class="compare-vals">
+                  <div>
+                    <div class="compare-val before">54</div>
+                    <div class="compare-val-lbl">no dropout</div>
+                  </div>
+                  <div>
+                    <div class="compare-val after">38</div>
+                    <div class="compare-val-lbl">α = 1.5</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">False Suppression</div>
+                  <div style="font-size:12px;color:var(--ink2)">Reduction in false content reach</div>
+                </div>
+                <div style="font-family:var(--display);font-size:40px;color:var(--green);text-align:right">–30%</div>
+              </div>
+            </div>
+            <div>
+              <div class="compare-item">
+                <div>
+                  <div class="compare-label">True Content Preserved</div>
+                  <div style="font-size:12px;color:var(--ink2)">Ratio of true reach retained</div>
+                </div>
+                <div style="font-family:var(--display);font-size:40px;color:var(--blue);text-align:right">88%</div>
+              </div>
+            </div>
+          </div>
+          <div class="insight" style="margin-top:16px">
+            <div class="insight-label">🔑 Key Result</div>
+            Algorithm 2 achieves <strong>discriminative suppression</strong>: false content is cut by 30%
+            while verified content retains 88% of its natural reach — matching the Bayiz & Topcu (2022) paper results.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ VIEW: COUNTER-NARRATIVE ════════════════════════════════ -->
+    <div class="view" id="view-rebuttal">
+      <div style="max-width:1000px;margin:0 auto">
+
+        <div class="card" style="margin-bottom:20px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px">Counter-Narrative Engine</div>
+          <div style="font-size:15px;color:var(--ink2);line-height:1.6">
+            When a false cascade is detected, InfoShield automatically generates a
+            <strong>RAG-grounded rebuttal</strong> via the Anthropic API and formats it
+            for each target platform. Rebuttals are then routed to verified domain experts for amplification.
+          </div>
+        </div>
+
+        <!-- Select which cascade to view rebuttal for -->
+        <div class="section-title" style="margin-bottom:12px">Select detected claim</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap" id="rebuttal-selector">
+          <button class="btn active" onclick="selectRebuttal(0)" id="rb-btn-0">🔴 5G / Cancer claim</button>
+          <button class="btn" onclick="selectRebuttal(1)" id="rb-btn-1">🔴 Vaccine / DNA claim</button>
+        </div>
+
+        <div class="cn-layout">
+          <!-- Left: detection + claim -->
+          <div>
+            <div class="detection-card">
+              <div class="detection-header">
+                <div class="detection-emoji">⚠️</div>
+                <div>
+                  <div class="detection-title">Misinformation Detected</div>
+                  <div class="detection-subtitle" id="rb-pattern-desc">—</div>
+                </div>
+              </div>
+
+              <!-- Meta -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">SOURCE</div>
+                  <div style="font-size:14px;font-weight:600" id="rb-source">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">BiGCN CONFIDENCE</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--amber);font-family:var(--display)" id="rb-conf">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">SPREAD PATTERN</div>
+                  <div style="font-size:14px;font-weight:600" id="rb-pattern">—</div>
+                </div>
+                <div style="background:var(--bg);border-radius:6px;padding:10px 12px">
+                  <div style="font-size:11px;color:var(--ink3);margin-bottom:3px">FIRST SEEN</div>
+                  <div style="font-size:14px;font-weight:600;font-family:var(--mono)" id="rb-time">—</div>
+                </div>
+              </div>
+
+              <div class="claim-block">
+                <div class="claim-lang-toggle">
+                  <button class="lang-btn active" onclick="setClaimLang('az',this)">🇦🇿 AZ</button>
+                  <button class="lang-btn" onclick="setClaimLang('en',this)">🇬🇧 EN</button>
+                </div>
+                <div class="claim-text" id="rb-claim">—</div>
+              </div>
+
+              <div style="font-size:13px;color:var(--ink2)">
+                Community spread: <span id="rb-spread" style="color:var(--ink)">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: rebuttal + routing -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="rebuttal-card">
+              <div class="rebuttal-header">
+                <span style="font-size:18px">✅</span>
+                <div class="rebuttal-title">Generated Rebuttal</div>
+              </div>
+
+              <div class="claim-lang-toggle" style="margin-bottom:10px">
+                <button class="lang-btn active" onclick="setRebuttalLang('az',this)">🇦🇿 AZ</button>
+                <button class="lang-btn" onclick="setRebuttalLang('en',this)">🇬🇧 EN</button>
+              </div>
+
+              <div class="rebuttal-text" id="rb-rebuttal">—</div>
+
+              <div class="sources-row" id="rb-sources"></div>
+
+              <div class="section-title" style="margin-top:4px">Format for platform</div>
+              <div class="platform-formats" id="pf-btns">
+                <button class="pf-btn" onclick="showFormat('telegram',this)"><span class="pf-icon">💬</span> Telegram</button>
+                <button class="pf-btn" onclick="showFormat('instagram',this)"><span class="pf-icon">📷</span> Instagram</button>
+                <button class="pf-btn" onclick="showFormat('whatsapp',this)"><span class="pf-icon">💚</span> WhatsApp</button>
+                <button class="pf-btn" onclick="showFormat('facebook',this)"><span class="pf-icon">🔵</span> Facebook</button>
+              </div>
+              <div class="formatted-box" id="formatted-box"></div>
+            </div>
+
+            <div class="card">
+              <div class="section-title">Route to Validator</div>
+              <div style="font-size:13px;color:var(--ink2);margin-bottom:12px">
+                Send rebuttal to a verified domain expert for amplification to their audience.
+              </div>
+              <div id="validator-list"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /app -->
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// DATA + STATE
+// ═══════════════════════════════════════════════════════════════════════
+
+let DATA = null;
+let selectedCascade = 0;
+let currentRebuttal = 0;
+let claimLang = 'az';
+let rebuttalLang = 'az';
+let currentHeatmapStep = 0;
+let heatmapMode = 'alg2'; // 'control' | 'alg2'
+
+// Graph state
+let graphMode = 'alg2';   // 'control' | 'alg2'
+let graphCascade = 'false';
+let isPlaying = false;
+let simInterval = null;
+let simStep = 0;
+let graphNodes = [];
+let graphLinks = [];
+let simulation = null;
+let svg, g;
+const NODE_COLORS = ['#4d94ff','#ff7733','#aa44ff','#33ffbb'];
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}, 1000);
+document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+
+// ═══════════════════════════════════════════════════════════════════════
+// LOAD
+// ═══════════════════════════════════════════════════════════════════════
+async function loadData() {
+  try {
+    const r = await fetch('./demo_data.json');
+    DATA = await r.json();
+  } catch(e) {
+    DATA = buildFallback();
+  }
+  init();
+}
+
+function buildFallback() {
+  // Minimal fallback if JSON fails
+  return {
+    meta: { class_names: ['Mainstream','Distributed','Fringe','Specialist'], class_sizes:[55057,38055,12572,8551] },
+    live_cascades: [
+      { id:'c1', source:'@az_health_info', platform:'instagram', platform_live:true, label:'false', binary_label:'false', confidence:0.91, pattern:'Wide Burst', pattern_desc:'False content spreading cross-community', nodes:54, edges:71, started:'14:23:05', elapsed_min:12, claim_az:'Yeni 5G qüllələri xərçəng riskini artırır', claim_en:'5G towers increase cancer risk', topic:'health', community_spread:[8,22,14,10], rebuttal_az:'5G ÜST tərəfindən təhlükəsiz hesab edilir.', rebuttal_en:'5G is safe per WHO guidelines.', sources:['who.int/5g'], validator:{name:'Dr. Leyla M.', followers:'18.4K', handle:'@drleyla_med', verified:true} },
+      { id:'c2', source:'@health_watch_az', platform:'instagram', platform_live:true, label:'false', binary_label:'false', confidence:0.84, pattern:'Deep Chain', pattern_desc:'Narrow chain of high-follower accounts', nodes:38, edges:41, started:'13:51:22', elapsed_min:44, claim_az:'COVID peyvəndi DNT-ni dəyişdirir', claim_en:'COVID vaccine alters DNA', topic:'vaccine', community_spread:[4,18,10,6], rebuttal_az:'mRNA peyvəndləri insan DNT-sinə daxil olmur.', rebuttal_en:'mRNA vaccines do not interact with DNA.', sources:['cdc.gov/vaccines'], validator:{name:'Prof. Rauf Ə.', followers:'12.1K', handle:'@profraauf', verified:true} },
+      { id:'c3', source:'@aztv_official', platform:'instagram', platform_live:false, label:'true', binary_label:'true', confidence:0.93, pattern:'Slow Diffusion', pattern_desc:'Steady within-community spread', nodes:49, edges:58, started:'11:55:12', elapsed_min:147, claim_az:'Nazirlər Kabineti yeni təhsil islahatları açıqladı', claim_en:'Cabinet announced education reforms 2025', topic:'government', community_spread:[28,12,4,5], rebuttal_az:null, rebuttal_en:null, sources:[], validator:null }
+    ],
+    simulation_runs: {
+      control: { label:'No Dropout', alpha:null, r_inf_true:49, r_inf_false:54,
+        steps:[ {step:0,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:8,lp_type:'control',new_infected:8}, {step:1,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:22,lp_type:'control',new_infected:14}, {step:2,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:38,lp_type:'control',new_infected:16}, {step:3,d_star:[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]],total_reached:49,lp_type:'control',new_infected:11} ] },
+      alpha_1_5: { label:'Algorithm 2 (α=1.5)', alpha:1.5, r_inf_true:43, r_inf_false:38,
+        steps:[ {step:0,d_star:[[0.92,0.41,0.18,0.61],[0.38,0.88,0.22,0.51],[0.15,0.19,0.81,0.28],[0.55,0.44,0.31,0.91]],total_reached:8,lp_type:'hard',new_infected:8}, {step:1,d_star:[[0.89,0.35,0.12,0.54],[0.31,0.91,0.18,0.44],[0.11,0.14,0.87,0.21],[0.48,0.38,0.24,0.94]],total_reached:19,lp_type:'hard',new_infected:11}, {step:2,d_star:[[0.94,0.28,0.08,0.47],[0.24,0.93,0.13,0.36],[0.07,0.10,0.91,0.15],[0.41,0.30,0.18,0.96]],total_reached:29,lp_type:'softened',new_infected:10}, {step:3,d_star:[[0.96,0.21,0.05,0.39],[0.17,0.95,0.09,0.28],[0.04,0.07,0.94,0.10],[0.33,0.22,0.12,0.97]],total_reached:38,lp_type:'softened',new_infected:9} ] }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+function init() {
+  populateFeed();
+  initHeatmap();
+  selectRebuttal(0);
+  initGraph();
+  // Set initial mode UI state
+  const ndEl=document.getElementById('mode-explain-nodropout');
+  const a2El=document.getElementById('mode-explain-alg2');
+  if(ndEl) ndEl.style.display='block';
+  if(a2El) a2El.style.display='none';
+  updateGraphTitles();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  if (name === 'graph') { setTimeout(initGraph, 50); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FEED VIEW
+// ═══════════════════════════════════════════════════════════════════════
+function populateFeed() {
+  const cs = DATA.live_cascades;
+  cs.forEach((c, i) => {
+    const claimEl = document.getElementById(`cc${i}-claim`);
+    if (claimEl) claimEl.textContent = c.claim_en;
+    const srcEl = document.getElementById(`cc${i}-source`); if (srcEl) srcEl.textContent = c.source;
+    const patEl = document.getElementById(`cc${i}-pattern`); if (patEl) patEl.textContent = c.pattern;
+    const nEl  = document.getElementById(`cc${i}-nodes`); if (nEl) nEl.textContent = c.nodes;
+    const tEl  = document.getElementById(`cc${i}-time`); if (tEl) tEl.textContent = c.started;
+    const cfEl = document.getElementById(`cc${i}-conf-fill`); if (cfEl) cfEl.style.width = Math.round(c.confidence*100)+'%';
+    const cpEl = document.getElementById(`cc${i}-conf-pct`); if (cpEl) cpEl.textContent = Math.round(c.confidence*100)+'%';
+  });
+}
+
+function selectCascade(i) {
+  document.querySelectorAll('.cascade-card').forEach((c,j) => c.classList.toggle('selected', j===i));
+  selectedCascade = i;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// D3 GRAPH
+// ═══════════════════════════════════════════════════════════════════════
+function initGraph() {
+  const el = document.getElementById('cascade-svg');
+  if (!el) return;
+  const W = el.parentElement.clientWidth || 600;
+  const H = el.parentElement.clientHeight || 400;
+  if (W < 10 || H < 10) return;
+
+  d3.select('#cascade-svg').selectAll('*').remove();
+  svg = d3.select('#cascade-svg').attr('width', W).attr('height', H);
+
+  // bg
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','#f8fafc').attr('rx',9);
+  // grid rings
+  for(let r=60;r<Math.min(W,H)/1.8;r+=50){
+    svg.append('circle').attr('cx',W/2).attr('cy',H/2).attr('r',r)
+      .attr('fill','none').attr('stroke','rgba(0,0,0,0.05)').attr('stroke-width',1);
+  }
+
+  g = svg.append('g');
+  buildGraphData();
+
+  simulation = d3.forceSimulation(graphNodes)
+    .force('link', d3.forceLink(graphLinks).id(d=>d.id).distance(45).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-80))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collide', d3.forceCollide(d=>d.r+5))
+    .on('tick', ticked);
+
+  renderGraph();
+
+  svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom', e=>{
+    g.attr('transform', e.transform);
+  }));
+
+  if (isPlaying) {
+    clearInterval(simInterval);
+    startPlayback();
+  }
+}
+
+function buildGraphData() {
+  const cascade = DATA.live_cascades.find(c=>c.binary_label===graphCascade) || DATA.live_cascades[0];
+  const n = Math.min(cascade.nodes, 40);
+  graphNodes = [];
+  graphLinks = [];
+
+  for(let i=0;i<n;i++){
+    const comm = Math.floor(i / (n/4));
+    graphNodes.push({
+      id: 'n'+i,
+      r: 5 + Math.log1p(Math.random()*800)*1.8,
+      community: Math.min(comm,3),
+      state: i===0 ? 'infected' : 'susceptible',
+      isFalse: graphCascade==='false'
+    });
+  }
+  for(let i=1;i<n;i++){
+    const src = graphNodes[Math.floor(Math.random()*i)];
+    graphLinks.push({source:'n'+src.id.slice(1), target:'n'+i, isFalse: graphCascade==='false'});
+  }
+}
+
+function renderGraph() {
+  if (!g) return;
+  g.selectAll('.link').remove();
+  g.selectAll('.node').remove();
+
+  const isFalse = graphCascade==='false';
+
+  g.selectAll('.link').data(graphLinks).enter().append('line')
+    .attr('class','link')
+    .attr('stroke', isFalse ? 'rgba(248,81,73,0.25)' : 'rgba(63,185,80,0.25)')
+    .attr('stroke-width',1.5);
+
+  const node = g.selectAll('.node').data(graphNodes).enter().append('g').attr('class','node');
+
+  node.append('circle')
+    .attr('r', d=>d.r)
+    .attr('fill', d => {
+      if(d.state==='removed') return '#d1d5db';
+      return NODE_COLORS[d.community] + 'cc';
+    })
+    .attr('stroke', d=>{
+      if(d.state==='infected') return isFalse ? '#f85149' : '#3fb950';
+      if(d.state==='removed') return '#9ca3af';
+      return NODE_COLORS[d.community];
+    })
+    .attr('stroke-width', d=>d.state==='infected'?2.5:1.5)
+    .attr('opacity', d=>d.state==='removed'?0.35:0.9);
+
+  node.on('mouseover', (ev,d) => {
+    const tt = document.getElementById('tooltip');
+    tt.style.display='block';
+    tt.style.left=(ev.clientX+14)+'px';
+    tt.style.top=(ev.clientY-12)+'px';
+    tt.innerHTML=`<strong>${CLASS_NAMES[d.community]}</strong> community<br>State: <span style="color:${d.state==='infected'?'#f85149':d.state==='removed'?'#9ca3af':'#58a6ff'}">${d.state}</span><br>Followers: ~${Math.round(Math.exp(d.r/1.8))}`;
+  }).on('mousemove', ev=>{
+    document.getElementById('tooltip').style.left=(ev.clientX+14)+'px';
+    document.getElementById('tooltip').style.top=(ev.clientY-12)+'px';
+  }).on('mouseout', ()=>{
+    document.getElementById('tooltip').style.display='none';
+  });
+
+  document.getElementById('graph-node-count').textContent = graphNodes.length + ' nodes · ' + graphLinks.length + ' edges';
+}
+
+const CLASS_NAMES = ['Mainstream','Distributed','Fringe','Specialist'];
+
+function ticked() {
+  if(!g) return;
+  g.selectAll('.link')
+    .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+    .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  g.selectAll('.node').attr('transform',d=>`translate(${d.x},${d.y})`);
+}
+
+// Simulation playback — advance states
+let simSteps = [];
+let simCurrentStep = 0;
+
+const NARR_MSGS_FALSE_CONTROL = [
+  'Wave 1 — the original post is shared widely. Content jumps immediately between communities.',
+  'Wave 2 — the burst continues. Notice how nodes of different colours are being reached (cross-community spread).',
+  'Wave 3 — misinformation reaches fringe communities, amplifying its reach further.',
+  'Wave 4 — spread slows as fewer susceptible nodes remain. Final reach: 54 nodes.',
+];
+const NARR_MSGS_FALSE_ALG2 = [
+  'Wave 1 — Algorithm 2 computes the dropout matrix. Some cross-community edges are already suppressed.',
+  'Wave 2 — Off-diagonal dropout values are low. The burst into other communities is being blocked.',
+  'Wave 3 — Only within-community spread continues. Cross-community edges are now mostly suppressed.',
+  'Wave 4 — Cascade contained. Final reach: 38 nodes — 30% less than without InfoShield.',
+];
+const NARR_MSGS_TRUE_CONTROL = [
+  'Wave 1 — the announcement is shared. It spreads within Mainstream and Distributed communities.',
+  'Wave 2 — content diffuses gradually. True content follows community lines more closely.',
+  'Wave 3 — steady within-community spread continues as expected.',
+  'Wave 4 — cascade complete. Final reach: 49 nodes.',
+];
+const NARR_MSGS_TRUE_ALG2 = [
+  'Wave 1 — Algorithm 2 is active. Within-community edges (diagonal) remain near 1.0.',
+  'Wave 2 — true content flows naturally within its community. Minimal suppression applied.',
+  'Wave 3 — Algorithm 2 correctly preserves verified content spread.',
+  'Wave 4 — 88% of natural reach preserved. Algorithm 2 discriminates correctly.',
+];
+
+function getNarrMsgs() {
+  if(graphCascade==='false' && graphMode==='control') return NARR_MSGS_FALSE_CONTROL;
+  if(graphCascade==='false' && graphMode==='alg2')    return NARR_MSGS_FALSE_ALG2;
+  if(graphCascade==='true'  && graphMode==='control') return NARR_MSGS_TRUE_CONTROL;
+  return NARR_MSGS_TRUE_ALG2;
+}
+
+function updateNarrativeBar(stepIdx, totalSteps, totalReached, newInfected) {
+  const msgs = getNarrMsgs();
+  const badge = document.getElementById('narr-step-badge');
+  const main  = document.getElementById('narr-main');
+  const count = document.getElementById('narr-count');
+  if(!badge) return;
+  badge.textContent = `Step ${stepIdx+1} of ${totalSteps}`;
+  main.innerHTML = msgs[Math.min(stepIdx, msgs.length-1)] || '';
+  const color = graphCascade==='false' ? 'var(--red)' : 'var(--green)';
+  count.innerHTML = `<span style="color:${color};font-weight:700">${totalReached}</span> nodes reached`;
+}
+
+function startPlayback() {
+  const run = graphMode==='control' ? DATA.simulation_runs.control : DATA.simulation_runs.alpha_1_5;
+  simSteps = run.steps;
+  simCurrentStep = 0;
+  const speed = parseInt(document.getElementById('speed-slider').value);
+  clearInterval(simInterval);
+
+  // Reset narrative
+  const nb=document.getElementById('narr-step-badge');
+  if(nb){ nb.textContent=`Step 0 of ${simSteps.length}`; }
+  const nm=document.getElementById('narr-main');
+  if(nm) nm.innerHTML='Simulation running… watch the nodes change colour as content spreads.';
+
+  simInterval = setInterval(() => {
+    if(simCurrentStep >= simSteps.length){
+      clearInterval(simInterval);
+      isPlaying=false;
+      document.getElementById('play-btn').textContent='▶ Play';
+      document.getElementById('play-btn').classList.remove('active');
+      const nm2=document.getElementById('narr-main');
+      const run2=graphMode==='control'?DATA.simulation_runs.control:DATA.simulation_runs.alpha_1_5;
+      if(nm2) nm2.innerHTML=`Simulation complete. <strong>${run2[graphMode==='control'?'r_inf_false':'r_inf_false']} nodes</strong> reached the content.`;
+      return;
+    }
+    const s = simSteps[simCurrentStep];
+    const reachable = s.total_reached;
+    graphNodes.forEach((n,i)=>{
+      if(i<reachable-s.new_infected) n.state='removed';
+      else if(i<reachable) n.state='infected';
+      else n.state='susceptible';
+    });
+    renderGraph();
+    simulation.alpha(0.05).restart();
+    updateNarrativeBar(simCurrentStep, simSteps.length, s.total_reached, s.new_infected);
+    simCurrentStep++;
+  }, Math.max(150, 1200/speed));
+}
+
+function togglePlay() {
+  const btn = document.getElementById('play-btn');
+  if(isPlaying){
+    clearInterval(simInterval);
+    isPlaying=false;
+    btn.textContent='▶ Play';
+    btn.classList.remove('active');
+  } else {
+    isPlaying=true;
+    btn.textContent='⏸ Pause';
+    btn.classList.add('active');
+    startPlayback();
+  }
+}
+
+function resetSim() {
+  clearInterval(simInterval);
+  isPlaying=false;
+  document.getElementById('play-btn').textContent='▶ Play';
+  document.getElementById('play-btn').classList.remove('active');
+  graphNodes.forEach(n=>n.state='susceptible');
+  if(graphNodes[0]) graphNodes[0].state='infected';
+  renderGraph();
+  updateRInfBars();
+  const nm=document.getElementById('narr-main');
+  if(nm) nm.innerHTML=`Press <strong>▶ Play</strong> to start the simulation.`;
+  const nb=document.getElementById('narr-step-badge');
+  if(nb) nb.textContent='Step — / —';
+  const nc=document.getElementById('narr-count');
+  if(nc) nc.innerHTML='0 nodes reached';
+}
+
+function setMode(mode) {
+  graphMode=mode;
+  document.getElementById('btn-control').classList.toggle('active',mode==='control');
+  document.getElementById('btn-alg2').classList.toggle('active',mode==='alg2');
+  const ndEl=document.getElementById('mode-explain-nodropout');
+  const a2El=document.getElementById('mode-explain-alg2');
+  const arEl=document.getElementById('alpha-row');
+  if(ndEl) ndEl.style.display=mode==='control'?'block':'none';
+  if(a2El) a2El.style.display=mode==='alg2'?'block':'none';
+  if(arEl) arEl.style.display=mode==='alg2'?'block':'none';
+  updateGraphTitles();
+  updateRInfBars();
+  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
+}
+
+function updateGraphTitles() {
+  const isFalse=graphCascade==='false', isAlg2=graphMode==='alg2';
+  const t=document.getElementById('graph-main-title'), s=document.getElementById('graph-main-sub');
+  if(!t) return;
+  if(isFalse&&!isAlg2){ t.textContent='False Content — No Dropout (Baseline)'; s.textContent='No intervention. Misinformation spreads freely across all community boundaries.'; }
+  else if(isFalse&&isAlg2){ t.textContent='False Content — Algorithm 2 Active 🛡'; s.textContent='InfoShield selectively suppresses cross-community edges to slow the false content.'; }
+  else if(!isFalse&&!isAlg2){ t.textContent='True Content — No Dropout (Baseline)'; s.textContent='Verified content spreading through the network without intervention.'; }
+  else { t.textContent='True Content — Algorithm 2 Active 🛡'; s.textContent='Algorithm 2 preserves within-community spread for verified content.'; }
+}
+
+function selectGraphCascade(type) {
+  graphCascade=type;
+  document.getElementById('cs-false').classList.toggle('active',type==='false');
+  document.getElementById('cs-true').classList.toggle('active',type==='true');
+  clearInterval(simInterval); isPlaying=false;
+  document.getElementById('play-btn').textContent='▶ Play';
+  document.getElementById('play-btn').classList.remove('active');
+  buildGraphData();
+  renderGraph();
+  simulation.nodes(graphNodes);
+  simulation.force('link').links(graphLinks);
+  simulation.alpha(0.5).restart();
+  updateGraphTitles();
+  updateRInfBars();
+  const nm=document.getElementById('narr-main');
+  if(nm) nm.innerHTML=`Press <strong>▶ Play</strong> to watch the simulation.`;
+  const nb=document.getElementById('narr-step-badge');
+  if(nb) nb.textContent='Step — / —';
+  const nc=document.getElementById('narr-count');
+  if(nc) nc.innerHTML='0 nodes reached';
+}
+
+function onAlphaChange(){
+  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
+}
+function onSpeedChange(el){
+  document.getElementById('speed-val').textContent=el.value+'×';
+  if(isPlaying){ clearInterval(simInterval); startPlayback(); }
+}
+
+function updateRInfBars() {
+  const run = graphMode==='control' ? DATA.simulation_runs.control : DATA.simulation_runs.alpha_1_5;
+  const trueTotal=49, falseTotal=54;
+  const tr=run.r_inf_true, fr=run.r_inf_false;
+  document.getElementById('r-true-pct').textContent=`${tr} / ${trueTotal}`;
+  document.getElementById('r-false-pct').textContent=`${fr} / ${falseTotal}`;
+  document.getElementById('r-bar-true').style.width=Math.round(tr/trueTotal*100)+'%';
+  document.getElementById('r-bar-false').style.width=Math.round(fr/falseTotal*100)+'%';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HEATMAP VIEW
+// ═══════════════════════════════════════════════════════════════════════
+const CLASSES_SHORT = ['Main.','Dist.','Fringe','Spec.'];
+const CLASSES_FULL  = ['Mainstream\n(55K)','Distributed\n(38K)','Fringe\n(13K)','Specialist\n(9K)'];
+
+function initHeatmap() {
+  // Control — all 1s
+  renderHeatmapIn('heatmap-control', [[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]], false);
+  // Algorithm 2 — step 0
+  currentHeatmapStep=0;
+  updateAlg2Heatmap();
+  buildStepIndicator();
+}
+
+function renderHeatmapIn(containerId, matrix, interactive) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+
+  const colLabels = `<div class="hm-col-labels">${CLASSES_SHORT.map(c=>`<div class="hm-col-lbl">${c}</div>`).join('')}</div>`;
+  let rows='';
+  for(let u=0;u<4;u++){
+    let cells='';
+    for(let v=0;v<4;v++){
+      const val=matrix[u][v];
+      const r=Math.round(255*(1-val)), gr=Math.round(180*val);
+      const bg=`rgba(${r},${gr},30,0.3)`;
+      const border=`rgba(${r},${gr},30,0.5)`;
+      const textColor=val>0.6?'#3fb950':val>0.3?'#e3b341':'#f85149';
+      const tipText=`${CLASSES_FULL[u].split('\n')[0]} → ${CLASSES_FULL[v].split('\n')[0]}: d*=${val.toFixed(2)}`;
+      const cursor=interactive?'cursor:pointer':'';
+      cells+=`<div class="hm-cell" style="background:${bg};border:1px solid ${border};${cursor}" data-tip="${tipText}">
+        <span style="color:${textColor};font-size:15px;font-weight:700">${val.toFixed(2)}</span>
+      </div>`;
+    }
+    rows+=`<div class="hm-row"><div class="hm-row-lbl">${CLASSES_SHORT[u]}</div><div class="hm-cells">${cells}</div></div>`;
+  }
+  el.innerHTML=colLabels+rows;
+}
+
+function updateAlg2Heatmap() {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  const s = steps[currentHeatmapStep];
+  renderHeatmapIn('heatmap-alg2', s.d_star, true);
+
+  const lpTag = document.getElementById('hm-lp-tag');
+  lpTag.textContent = s.lp_type.toUpperCase() + ' LP';
+  lpTag.className = 'lp-tag ' + s.lp_type;
+
+  document.getElementById('step-desc').textContent =
+    `Step ${s.step+1} of ${steps.length} — ${s.total_reached} nodes reached, +${s.new_infected} newly infected`;
+
+  document.getElementById('step-prev').disabled = currentHeatmapStep===0;
+  document.getElementById('step-next').disabled = currentHeatmapStep===steps.length-1;
+
+  // Update dots
+  const dots = document.querySelectorAll('.step-dot');
+  dots.forEach((d,i)=>{
+    d.classList.toggle('active',i===currentHeatmapStep);
+    d.classList.toggle('done',i<currentHeatmapStep);
+  });
+}
+
+function buildStepIndicator() {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  const el = document.getElementById('step-indicator');
+  el.innerHTML = steps.map((s,i)=>`<div class="step-dot${i===0?' active':''}" onclick="jumpHeatmapStep(${i})" title="Step ${i+1}: +${s.new_infected} infected"></div>`).join('');
+}
+
+function stepHeatmap(dir) {
+  const steps = DATA.simulation_runs.alpha_1_5.steps;
+  currentHeatmapStep = Math.max(0, Math.min(steps.length-1, currentHeatmapStep+dir));
+  updateAlg2Heatmap();
+}
+function jumpHeatmapStep(i) {
+  currentHeatmapStep=i;
+  updateAlg2Heatmap();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COUNTER-NARRATIVE VIEW
+// ═══════════════════════════════════════════════════════════════════════
+let currentRebuttalData = null;
+
+function selectRebuttal(idx) {
+  currentRebuttal=idx;
+  document.querySelectorAll('[id^="rb-btn-"]').forEach((b,i)=>b.classList.toggle('active',i===idx));
+
+  const falseCascades = DATA.live_cascades.filter(c=>c.binary_label==='false');
+  const c = falseCascades[idx];
+  if(!c) return;
+  currentRebuttalData = c;
+
+  // Reset lang to az
+  claimLang='az'; rebuttalLang='az';
+  document.querySelectorAll('.lang-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.includes('AZ'));
+  });
+
+  document.getElementById('rb-source').textContent = c.source;
+  document.getElementById('rb-conf').textContent = Math.round(c.confidence*100)+'%';
+  document.getElementById('rb-pattern').textContent = c.pattern;
+  document.getElementById('rb-pattern-desc').textContent = c.pattern_desc;
+  document.getElementById('rb-time').textContent = c.started + ' ('+c.elapsed_min+' min ago)';
+  document.getElementById('rb-claim').textContent = c.claim_az || c.claim_en;
+  document.getElementById('rb-rebuttal').textContent = c.rebuttal_az || c.rebuttal_en || 'No rebuttal generated.';
+
+  const spread = c.community_spread;
+  const names = DATA.meta.class_names;
+  document.getElementById('rb-spread').textContent =
+    spread.map((n,i)=>`${names[i]}: ${n}`).join(' · ');
+
+  // Sources
+  const srcEl = document.getElementById('rb-sources');
+  srcEl.innerHTML = (c.sources||[]).map(s=>`<div class="source-chip">🔗 ${s}</div>`).join('');
+
+  // Validators
+  const vEl = document.getElementById('validator-list');
+  if(c.validator){
+    const v=c.validator;
+    vEl.innerHTML=`
+      <div class="validator-card">
+        <div class="validator-avatar">${v.name.charAt(0)}</div>
+        <div>
+          <div class="validator-name">${v.name} ${v.verified?'✓':''}</div>
+          <div class="validator-meta">${v.followers} followers · ${v.handle}</div>
+        </div>
+        <button class="send-btn" onclick="sendValidator(this)">Send →</button>
+      </div>`;
+  } else {
+    vEl.innerHTML='<div style="font-size:13px;color:var(--ink2)">No validator assigned.</div>';
+  }
+
+  // Clear format box
+  document.getElementById('formatted-box').classList.remove('visible');
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function setClaimLang(lang, btn) {
+  claimLang=lang;
+  btn.parentElement.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  const c=currentRebuttalData;
+  if(!c) return;
+  document.getElementById('rb-claim').textContent = lang==='az' ? (c.claim_az||c.claim_en) : (c.claim_en||c.claim_az);
+}
+
+function setRebuttalLang(lang, btn) {
+  rebuttalLang=lang;
+  btn.parentElement.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  const c=currentRebuttalData;
+  if(!c) return;
+  document.getElementById('rb-rebuttal').textContent = lang==='az' ? (c.rebuttal_az||c.rebuttal_en) : (c.rebuttal_en||c.rebuttal_az);
+}
+
+const PLATFORM_FORMATS = {
+  telegram:  (c)=>`📌 <b>RƏSMİ CAVAB</b>\n\n${c.rebuttal_az}\n\n🔗 Mənbə: ${(c.sources||[]).join(', ')}`,
+  instagram: (c)=>`${c.rebuttal_az}\n\n#Sağlamlıq #RəsmiMəlumat #ÜST`,
+  whatsapp:  (c)=>`${c.rebuttal_az}`,
+  facebook:  (c)=>`${c.rebuttal_az}\n\n📢 Rəsmi məlumat — ${(c.sources||[]).join(', ')}`
+};
+
+function showFormat(platform, btn) {
+  document.querySelectorAll('.pf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c=currentRebuttalData;
+  if(!c) return;
+  const text = PLATFORM_FORMATS[platform](c);
+  const box = document.getElementById('formatted-box');
+  box.textContent=text;
+  box.classList.add('visible');
+}
+
+function sendValidator(btn) {
+  btn.textContent='✓ Sent';
+  btn.classList.add('sent');
+  btn.disabled=true;
+  setTimeout(()=>{btn.textContent='Send →';btn.classList.remove('sent');btn.disabled=false;}, 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
