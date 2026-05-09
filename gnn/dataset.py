@@ -1,309 +1,245 @@
 """
-Twitter15/16 PyG dataset for BiGCN.
+gnn/dataset.py
+==============
+Loaders for Twitter-15/16 and WICO propagation-tree datasets.
 
-─── BROADCAST DESIGN — DO NOT "FIX" THIS ─────────────────────────────────────
-Twitter15/16 tree files store only the ROOT tweet ID for every node.
-Format: ['user_id', 'ROOT_tweet_id', delay] — reply tweet IDs are not recorded.
-source_tweets.txt only has root tweet text. There is no per-node text file.
+Tree file format (per BiGCN repo convention):
+----------------------------------------------
+Each line is either:
+    ROOT -> tweet_id -> [t, uid, parent_id, nchild]
+or an edge row:
+    parent_id -> child_id -> [t, uid, parent_id, nchild]
 
-Broadcasting root_emb to all nodes is INTENTIONAL and CORRECT for this dataset.
-Every reply exists in the context of the root claim, so shared text features
-are semantically justified. The is_root flag in struct features lets the GCN
-distinguish root from replies structurally.
-
-Do not replace root_emb with per-node lookups or zero vectors.
-Per-node text is unavailable. Zero vectors → 68% accuracy. Broadcast → 85%+.
-──────────────────────────────────────────────────────────────────────────────
+Label file format:
+    label\ttweet_id
+e.g.:
+    false\t123456789
+    true\t987654321
 """
+
 from __future__ import annotations
 
-import logging
 import re
-from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import torch
-from sklearn.model_selection import StratifiedKFold
-from torch.utils.data import Dataset as TorchDataset
-from torch_geometric.data import Data
 
-from config import cfg
 
-log = logging.getLogger(__name__)
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
-# ─── 4-class label mapping (Twitter15/16 standard) ────────────────────────────
-LABEL_MAP = {"true": 0, "false": 1, "unverified": 2, "non-rumor": 3}
-
-# ─── Tree edge regex ─────────────────────────────────────────────────────────
-EDGE_PATTERN = re.compile(
-    r"\['([^']*)',\s*'([^']*)',\s*'([^']*)'\]\s*->\s*\['([^']*)',\s*'([^']*)',\s*'([^']*)'\]"
+_EDGE_RE = re.compile(
+    r"'?(\w+)'?\s*->\s*'?(\w+)'?\s*->\s*\[([^\]]*)\]"
 )
 
-# ─── RoBERTa encoder (lazy, frozen) ───────────────────────────────────────────
-_encoder = None
+
+def _parse_edge_line(line: str) -> Optional[Tuple[str, str, List[float]]]:
+    """Parse a single edge line from a BiGCN-format tree file.
+
+    Returns (parent_id, child_id, [timestamp, user_id, parent_id, nchildren])
+    or None if the line cannot be parsed.
+    """
+    m = _EDGE_RE.match(line.strip())
+    if not m:
+        return None
+    parent, child, payload = m.groups()
+    try:
+        values = [float(x.strip()) for x in payload.split(",") if x.strip()]
+    except ValueError:
+        values = []
+    return parent, child, values
 
 
-def _get_encoder():
-    global _encoder
-    if _encoder is not None:
-        return _encoder
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
-    from transformers import RobertaModel, RobertaTokenizer
+class CascadeTree:
+    """Lightweight representation of one propagation tree."""
 
-    tokenizer = RobertaTokenizer.from_pretrained(cfg.bigcn.text_encoder)
-    model = RobertaModel.from_pretrained(cfg.bigcn.text_encoder).eval()
-    for p in model.parameters():
-        p.requires_grad = False
+    def __init__(self, root_id: str, label: Optional[str] = None):
+        self.root_id = root_id
+        self.label = label                    # "true" / "false" / "unverified" etc.
+        # adjacency: parent -> [children]
+        self.children: Dict[str, List[str]] = {}
+        # metadata per node: node_id -> [t, uid, parent_id, nchild]
+        self.node_meta: Dict[str, List[float]] = {}
+        self.nodes: set = {root_id}
 
-    @torch.no_grad()
-    def encode(text: str) -> torch.Tensor:
-        text = (text or "").strip() or "[empty]"
-        toks = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
-        out = model(**toks)
-        return out.last_hidden_state[0, 0, :].detach().clone()  # CLS, (768,)
+    # ------------------------------------------------------------------
+    # Mutators
+    # ------------------------------------------------------------------
+    def add_edge(self, parent: str, child: str, meta: List[float] = None):
+        self.children.setdefault(parent, [])
+        if child not in self.children[parent]:
+            self.children[parent].append(child)
+        self.nodes.add(parent)
+        self.nodes.add(child)
+        if meta:
+            self.node_meta[child] = meta
 
-    _encoder = encode
-    return _encoder
+    # ------------------------------------------------------------------
+    # Graph metrics
+    # ------------------------------------------------------------------
+    def depth(self) -> int:
+        """Longest path (in edges) from root to any leaf."""
+        return self._max_depth(self.root_id, visited=set())
 
+    def _max_depth(self, node: str, visited: set) -> int:
+        if node in visited:
+            return 0
+        visited.add(node)
+        kids = self.children.get(node, [])
+        if not kids:
+            return 0
+        return 1 + max(self._max_depth(k, visited) for k in kids)
 
-# ─── File parsers ─────────────────────────────────────────────────────────────
-
-def _parse_tree_file(path: Path) -> List[Tuple[str, str]]:
-    """Parse tree file → list of (parent_uid, child_uid) edges, ROOT excluded."""
-    sentinel = cfg.twitter15.root_sentinel
-    edges: List[Tuple[str, str]] = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            m = EDGE_PATTERN.match(line.strip())
-            if not m:
+    def width(self) -> int:
+        """Maximum number of nodes at any single BFS level."""
+        if not self.children and len(self.nodes) == 1:
+            return 1
+        from collections import deque
+        q: deque = deque([(self.root_id, 0)])
+        level_count: Dict[int, int] = {}
+        visited = set()
+        while q:
+            node, lvl = q.popleft()
+            if node in visited:
                 continue
-            p_uid, _, _, c_uid, _, _ = m.groups()
-            if p_uid == sentinel:
+            visited.add(node)
+            level_count[lvl] = level_count.get(lvl, 0) + 1
+            for child in self.children.get(node, []):
+                q.append((child, lvl + 1))
+        return max(level_count.values()) if level_count else 1
+
+    def size(self) -> int:
+        return len(self.nodes)
+
+    def __repr__(self):
+        return (f"CascadeTree(root={self.root_id!r}, label={self.label!r}, "
+                f"nodes={self.size()}, depth={self.depth()}, width={self.width()})")
+
+
+# ---------------------------------------------------------------------------
+# File-level parsers
+# ---------------------------------------------------------------------------
+
+def _parse_tree_file(filepath: Path) -> CascadeTree:
+    """Parse one Twitter-15/16-format tree file into a CascadeTree.
+
+    This is the canonical parser; weibo_dataset.py delegates here (or to
+    _parse_weibo_tree_file for format variations).
+    """
+    filepath = Path(filepath)
+    root_id = filepath.stem          # filename without extension = tweet id
+
+    tree = CascadeTree(root_id=root_id)
+
+    with open(filepath, encoding="utf-8", errors="replace") as fh:
+        for raw_line in fh:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
                 continue
-            edges.append((p_uid, c_uid))
-    return edges
+            parsed = _parse_edge_line(line)
+            if parsed is None:
+                continue
+            parent, child, meta = parsed
+            # Normalise the sentinel "ROOT" -> actual root id
+            if parent.upper() == "ROOT":
+                parent = root_id
+            if child.upper() == "ROOT":
+                continue          # self-loops on ROOT are skip-worthy
+            tree.add_edge(parent, child, meta)
+
+    return tree
 
 
-def _load_labels(label_file: Path) -> Dict[str, int]:
-    """label.txt format: 'label:tweet_id' per line."""
-    out: Dict[str, int] = {}
-    with open(label_file, encoding="utf-8") as fh:
+def _load_labels(label_file: Path) -> Dict[str, str]:
+    """Load a BiGCN label.txt file.
+
+    Expected formats (tab-separated OR colon-separated):
+        false\\t123456
+        label:tweet_id
+    Returns dict mapping tweet_id -> label string.
+    """
+    labels: Dict[str, str] = {}
+    with open(label_file, encoding="utf-8", errors="replace") as fh:
         for line in fh:
             line = line.strip()
-            if not line or ":" not in line:
+            if not line:
                 continue
-            label, tweet_id = line.split(":", 1)
-            label = label.strip().lower()
-            if label in LABEL_MAP:
-                out[tweet_id.strip()] = LABEL_MAP[label]
-    return out
-
-
-def _load_source_texts(source_file: Path) -> Dict[str, str]:
-    """source_tweets.txt format: 'tweet_id\\ttext' per line. Root nodes only."""
-    out: Dict[str, str] = {}
-    with open(source_file, encoding="utf-8") as fh:
-        for line in fh:
-            parts = line.rstrip("\n").split("\t", 1)
+            if "\t" in line:
+                parts = line.split("\t", 1)
+            elif ":" in line:
+                parts = line.split(":", 1)
+            else:
+                continue
             if len(parts) == 2:
-                out[parts[0]] = parts[1]
-    return out
+                label, tweet_id = parts[0].strip(), parts[1].strip()
+                labels[tweet_id] = label.lower()
+    return labels
 
 
-# ─── Graph construction ───────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Dataset loaders
+# ---------------------------------------------------------------------------
 
-def _build_pyg_graph(
-    tweet_id: str,
-    edges: List[Tuple[str, str]],
-    label: int,
-    root_text: str,
-    embed_cache: Dict[str, torch.Tensor],
-) -> Optional[Data]:
-    if not edges:
-        return None
+class Twitter15Dataset:
+    """Loads the full Twitter-15 propagation-tree dataset."""
 
-    # Root user is parent in the first edge (after ROOT sentinel was stripped)
-    root_uid = edges[0][0]
+    LABEL_MAP = {
+        "false rumour": 0, "false": 0,
+        "true rumour": 1,  "true": 1,
+        "unverified": 2,
+        "non-rumour": 3,  "non-rumor": 3,
+    }
 
-    nodes_set = set()
-    for p, c in edges:
-        nodes_set.add(p)
-        nodes_set.add(c)
-    nodes = [root_uid] + sorted(nodes_set - {root_uid})  # root at index 0
-    node_to_idx = {n: i for i, n in enumerate(nodes)}
+    def __init__(self, tree_dir: Path, label_file: Path):
+        self.tree_dir = Path(tree_dir)
+        self.label_file = Path(label_file)
+        self._labels: Dict[str, str] = _load_labels(self.label_file)
+        self.trees: List[CascadeTree] = self._load_all()
 
-    # Edge tensors
-    edge_index = torch.tensor(
-        [[node_to_idx[p] for p, c in edges],
-         [node_to_idx[c] for p, c in edges]],
-        dtype=torch.long,
-    )
-    edge_index_bu = edge_index.flip(0)
+    def _load_all(self) -> List[CascadeTree]:
+        trees = []
+        for fp in sorted(self.tree_dir.glob("*.txt")):
+            tree = _parse_tree_file(fp)
+            tree.label = self._labels.get(tree.root_id)
+            trees.append(tree)
+        return trees
 
-    # Structural stats
-    parents: Dict[str, List[str]] = {n: [] for n in nodes}
-    children: Dict[str, List[str]] = {n: [] for n in nodes}
-    for p, c in edges:
-        children[p].append(c)
-        parents[c].append(p)
+    def __len__(self):
+        return len(self.trees)
 
-    depth: Dict[str, int] = {root_uid: 0}
-    queue = [root_uid]
-    while queue:
-        nxt = []
-        for n in queue:
-            for c in children[n]:
-                if c not in depth:
-                    depth[c] = depth[n] + 1
-                    nxt.append(c)
-        queue = nxt
-
-    max_depth = max(max(depth.values(), default=1), 1)
-    max_in = max(max((len(v) for v in parents.values()), default=1), 1)
-    max_out = max(max((len(v) for v in children.values()), default=1), 1)
-
-    # ─── Root embedding (BROADCAST to all nodes — see file header) ───────
-    encoder = _get_encoder()
-    if tweet_id not in embed_cache:
-        embed_cache[tweet_id] = (
-            encoder(root_text) if root_text else torch.zeros(768)
-        )
-    root_emb = embed_cache[tweet_id]  # (768,) shared by all nodes
-
-    # ─── Node features: [root_emb (768) | struct (4)] = 772 dims ─────────
-    x_rows = []
-    for node in nodes:
-        struct = torch.tensor(
-            [
-                depth.get(node, max_depth) / max_depth,
-                len(parents[node]) / max_in,
-                len(children[node]) / max_out,
-                1.0 if node == root_uid else 0.0,  # is_root flag
-            ],
-            dtype=torch.float32,
-        )
-        x_rows.append(torch.cat([root_emb, struct], dim=0))
-
-    x = torch.stack(x_rows)  # (N, 772)
-
-    # Sanity check: broadcast invariant — text portion identical across nodes
-    if x.shape[0] >= 2:
-        assert torch.allclose(x[0, :768], x[-1, :768]), (
-            "Text embeddings differ across nodes — broadcast broken. "
-            "See dataset.py BROADCAST DESIGN comment at top of file."
-        )
-
-    # Root mask: True at the single root node (used by BiGCN root enhancement)
-    root_mask = torch.zeros(len(nodes), dtype=torch.bool)
-    root_mask[0] = True
-
-    return Data(
-        x=x,
-        edge_index=edge_index,
-        edge_index_bu=edge_index_bu,
-        y=torch.tensor([label], dtype=torch.long),
-        root_mask=root_mask,
-        num_nodes=len(nodes),
-        tweet_id=tweet_id,
-    )
+    def __repr__(self):
+        return f"Twitter15Dataset(n={len(self)})"
 
 
-# ─── Dataset class ────────────────────────────────────────────────────────────
+class WICODataset:
+    """Loader for the WICO COVID-conspiracy dataset.
 
-class TwitterRumourDataset(TorchDataset):
-    """In-memory dataset of PyG Data objects for Twitter15 or Twitter16."""
+    The tree format is identical to Twitter-15; only the label vocabulary
+    differs: 'conspiracy' (false/harmful) and 'other' (benign).
+    """
 
-    def __init__(self, split: str, force_reprocess: bool = False):
-        assert split in ("twitter15", "twitter16")
-        self.split = split
+    def __init__(self, tree_dir: Path, label_file: Path):
+        self.tree_dir = Path(tree_dir)
+        self.label_file = Path(label_file)
+        self._labels: Dict[str, str] = _load_labels(self.label_file)
+        self.trees: List[CascadeTree] = self._load_all()
 
-        if split == "twitter15":
-            self.raw_root = Path(cfg.paths.twitter15)
-            self.tree_dir = Path(cfg.paths.twitter15_trees)
-        else:
-            self.raw_root = Path(cfg.paths.twitter16)
-            self.tree_dir = Path(cfg.paths.twitter16_trees)
+    def _load_all(self) -> List[CascadeTree]:
+        trees = []
+        for fp in sorted(self.tree_dir.glob("*.txt")):
+            tree = _parse_tree_file(fp)
+            tree.label = self._labels.get(tree.root_id)
+            trees.append(tree)
+        return trees
 
-        self.processed_root = Path(cfg.paths.graphs_pt) / split
-        self.processed_root.mkdir(parents=True, exist_ok=True)
-        self._cache_file = self.processed_root / "all_graphs.pt"
+    def __len__(self):
+        return len(self.trees)
 
-        if force_reprocess or not self._cache_file.exists():
-            self._process()
-
-        self._data_list: List[Data] = torch.load(self._cache_file, weights_only=False)
-        log.info(f"[{split}] Loaded {len(self._data_list)} graphs from cache.")
-
-    def _process(self):
-        labels = _load_labels(self.raw_root / cfg.twitter15.label_file)
-        sources = _load_source_texts(self.raw_root / cfg.twitter15.source_tweets_file)
-
-        tree_files = sorted(self.tree_dir.glob("*.txt"))
-        log.info(f"[{self.split}] Found {len(tree_files)} tree files")
-
-        embed_cache: Dict[str, torch.Tensor] = {}
-        graphs: List[Data] = []
-        skipped = 0
-
-        for i, tree_path in enumerate(tree_files):
-            tweet_id = tree_path.stem
-            if tweet_id not in labels:
-                skipped += 1
-                continue
-
-            edges = _parse_tree_file(tree_path)
-            n_nodes = len({n for e in edges for n in e})
-            if n_nodes < cfg.twitter15.min_tree_size or n_nodes > cfg.twitter15.max_tree_size:
-                skipped += 1
-                continue
-
-            data = _build_pyg_graph(
-                tweet_id=tweet_id,
-                edges=edges,
-                label=labels[tweet_id],
-                root_text=sources.get(tweet_id, ""),
-                embed_cache=embed_cache,
-            )
-            if data is None:
-                skipped += 1
-                continue
-
-            graphs.append(data)
-
-            if (i + 1) % 200 == 0:
-                log.info(f"[{self.split}] Processed {i + 1}/{len(tree_files)}")
-
-        dist = Counter(int(g.y.item()) for g in graphs)
-        log.info(
-            f"[{self.split}] Loaded {len(graphs)} graphs, {skipped} skipped. "
-            f"Label dist: {dict(sorted(dist.items()))}"
-        )
-        torch.save(graphs, self._cache_file)
-
-    def __len__(self) -> int:
-        return len(self._data_list)
-
-    def __getitem__(self, idx: int) -> Data:
-        return self._data_list[idx]
-
-    # Keep PyG-style alias for compatibility with existing train.py
-    def get(self, idx: int) -> Data:
-        return self._data_list[idx]
-
-    def get_kfold_splits(self, n_splits: int = 5, seed: int = 42):
-        """Return list of (train_idx, val_idx, test_idx) for stratified k-fold CV."""
-        labels = np.array([int(g.y.item()) for g in self._data_list])
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-
-        folds = []
-        all_idx = np.arange(len(self._data_list))
-        for fold_idx, (train_val_idx, test_idx) in enumerate(skf.split(all_idx, labels)):
-            rng = np.random.default_rng(seed + fold_idx)
-            rng.shuffle(train_val_idx)
-            n_val = max(1, int(0.1 * len(train_val_idx)))
-            val_idx = train_val_idx[:n_val]
-            train_idx = train_val_idx[n_val:]
-            folds.append((train_idx, val_idx, test_idx))
-        return folds
+    def __repr__(self):
+        return f"WICODataset(n={len(self)})"

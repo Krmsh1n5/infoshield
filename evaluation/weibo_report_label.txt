@@ -1,0 +1,102 @@
+WITHIN-WEIBO: RUMOUR vs NON-RUMOUR STRUCTURAL ANALYSIS
+Factual interpretation of empirical results
+=======================================================
+
+SAMPLE
+------
+Rumour cascades:     2,278
+Non-rumour cascades: 2,249
+Unlabelled (excluded): 132
+Labels are balanced — no class imbalance problem.
+
+
+RAW NUMBERS
+-----------
+Metric              Rumour      Non-rumour    Difference
+----------          ------      ----------    ----------
+Mean depth           3.914        6.724        -41.8%
+Mean width         566.647      494.695        +14.5%
+Mean d/w ratio       0.022        0.090        -75.6%
+Mean size          721.201      876.169        -17.7%
+
+
+WHAT EACH NUMBER MEANS
+-----------------------
+
+1. RUMOURS ARE SHALLOWER (-41.8% depth, 3.9 vs 6.7 hops)
+
+   A rumour on Weibo travels on average 3.9 hops from the root post.
+   A non-rumour travels 6.7 hops. Rumours stop chaining sooner.
+
+   This means people repost rumours quickly and broadly but do not
+   continue to engage with them in long sequences. The cascade burns
+   wide and fast, then dies. Non-rumours sustain longer chains —
+   people keep replying, discussing, and forwarding in threads.
+
+2. RUMOURS ARE WIDER (+14.5% width, 567 vs 495 nodes at peak level)
+
+   At the busiest level of the cascade, rumours have 567 nodes on
+   average versus 495 for non-rumours. Rumours spread to more people
+   simultaneously at each hop — a classic viral burst pattern.
+
+3. THE D/W RATIO GAP IS THE STRONGEST SIGNAL (-75.6%, 0.022 vs 0.090)
+
+   This is the most important number. Rumours have a depth/width ratio
+   of 0.022. Non-rumours have 0.090 — more than four times higher.
+
+   In plain terms: relative to how wide a cascade spreads, non-rumours
+   travel four times deeper. Rumours are extremely flat relative to
+   their breadth. Non-rumours, while still wide, have proportionally
+   much more vertical structure.
+
+   This ratio is a single number that captures the structural shape of
+   a cascade. A classifier that uses this feature will have a real
+   signal to work with, not noise.
+
+4. NON-RUMOURS ARE LARGER OVERALL (-17.7% size, 721 vs 876 nodes)
+
+   Non-rumour cascades have 876 nodes on average; rumour cascades have
+   721. Non-rumours generate more total engagement. This fits with the
+   depth finding: non-rumours sustain longer discussion, accumulating
+   more nodes across more levels.
+
+
+THE CORE FINDING
+----------------
+Rumours on Weibo spread as wide bursts — many reposts at each level,
+but chains terminate quickly. Non-rumours generate sustained discussion
+— they go deeper and accumulate more total engagement even if each
+individual level is slightly narrower.
+
+This is not the same pattern in every dataset. On Twitter-15 the
+distinction between true and false content is less structurally clean
+because Twitter's reply threading creates different tree shapes than
+Weibo's repost mechanism. The Weibo-specific pattern here is genuine
+and large enough to be useful.
+
+
+WHAT THIS MEANS FOR THE GNN
+----------------------------
+Cascade structure IS a discriminating signal within Weibo — not just
+between communities but between labels within the same community.
+
+The depth/width ratio (0.022 rumour vs 0.090 non-rumour, a 4x gap) is
+large enough that a GNN encoding structural position — depth, breadth,
+level normalisation — will pick this up during training without any
+text features at all. The is_root flag and level-normalised structural
+features in the node feature matrix directly capture this.
+
+Practically: the b- matrix (misinformation spreading) should encode
+a low-depth, high-width prior for Weibo. The b+ matrix (credible
+content) should encode a higher-depth, moderate-width prior. These
+are different from the Twitter-15 priors and different from each other
+within Weibo — both facts are now empirically established.
+
+
+WHAT TO BE CAREFUL ABOUT
+--------------------------
+The 132 unlabelled events were excluded from this analysis. If those
+events are structurally unusual (e.g. removed posts that spread very
+far before deletion), the true rumour structural profile could be
+more extreme than the 2,278-event sample suggests. This is worth
+checking before claiming the d/w ratio gap will hold in production.

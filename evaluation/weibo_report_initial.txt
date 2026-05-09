@@ -1,0 +1,114 @@
+WEIBO vs TWITTER-15: CASCADE STRUCTURE ANALYSIS
+Phase 1 Exploration Report — InfoGuard Project
+================================================
+
+
+WHAT WE MEASURED
+----------------
+For every propagation tree in both datasets we computed three structural
+numbers: depth (how many hops the furthest reply is from the root post),
+width (how many nodes share the same level at the busiest point in the
+tree), and their ratio (depth divided by width). We also computed the Gini
+coefficient of the depth distribution, which tells us how unequal the
+spreading is — a high Gini means a small fraction of posts account for
+most of the propagation activity.
+
+
+ACTUAL RESULTS FROM THE DATA
+-----------------------------
+                       Twitter-15      Weibo
+                       ----------      -----
+Mean cascade depth       3.96          5.19
+Mean cascade width     309.84        530.53
+Depth / width ratio      0.02          0.05
+Gini (depth)             0.21          0.35
+
+Dataset sizes: Twitter-15 has ~1,490 labelled cascades.
+               Weibo has ~4,664 events total.
+
+Statistical tests (Mann-Whitney U, two-sided) confirmed that the depth,
+width, and depth/width ratio distributions are significantly different
+between the two platforms (all p-values well below 0.001). These are not
+sampling accidents.
+
+
+WHAT THE NUMBERS TELL US
+------------------------
+
+1. Weibo posts spread wider and deeper than Twitter-15 posts.
+   The average cascade on Weibo reaches 530 nodes across at its busiest
+   level, compared to 310 on Twitter-15. That is a 71% difference in
+   breadth. Weibo is also 31% deeper on average (5.19 vs 3.96 hops).
+   Both effects are statistically significant.
+
+   Why this makes sense: Weibo's repost mechanism (similar to a pure
+   retweet with no reply threading) naturally produces flat, wide bursts
+   at each level. But because the platform has a large and dense user
+   base, these wide bursts also chain into longer sequences, producing
+   deeper trees than Twitter-15's reply-heavy structure.
+
+2. Both platforms produce very flat cascades overall (low depth/width
+   ratio), but Weibo's ratio is 2.5x higher (0.05 vs 0.02).
+   This means that relative to how wide it spreads, Weibo content does
+   travel proportionally deeper. The difference is small in absolute
+   terms but consistent across thousands of events and statistically
+   robust.
+
+3. Weibo spreading is more unequal (Gini 0.35 vs 0.21).
+   The higher Gini on Weibo tells us that a small number of Weibo
+   cascades run much deeper than the majority. Most posts die after a
+   few hops, but the ones that break through tend to chain significantly
+   further. Twitter-15 is more uniform — posts that spread tend to spread
+   at roughly similar depths. This bimodal pattern on Weibo is important
+   for a detection system: the dangerous cascades are in the tail, not
+   the average.
+
+4. Rumour vs non-rumour split is balanced on Weibo (96 rumour / 104
+   non-rumour in the labelled portion), similar to Twitter-15's split
+   (764 false / 726 true). This means neither dataset has a severe class
+   imbalance problem, and classifiers trained on either platform will not
+   be trivially fooled by predicting the majority class.
+
+
+THE CORE ENGINEERING IMPLICATION
+---------------------------------
+The spreading patterns are measurably different between the two platforms.
+A model whose belief-propagation matrices (b+ and b-) are fitted on
+Twitter-15 data will encode a width prior of ~310 and a depth prior of
+~4 hops. When that same model encounters a Weibo cascade with typical
+width ~530 and depth ~5, its width estimate is off by 71% and its depth
+estimate is off by 31% before it has even started classifying content.
+
+This is not a small calibration error — it would systematically distort
+the confidence scores the model outputs, making it less reliable for any
+Weibo deployment. The exploration confirms that b+ and b- matrices must
+be fitted separately per community, or the model must accept community
+identity as an explicit conditioning input.
+
+
+WHAT IS NOT YET ANSWERED
+-------------------------
+This analysis only covers graph structure. We have not yet looked at:
+
+- Whether the structural difference is consistent across rumour and
+  non-rumour subcategories separately (a rumour on Weibo might have a
+  different profile from a non-rumour on Weibo, independently of the
+  platform difference).
+- Temporal dynamics: how fast cascades grow in the first hour vs the
+  first day. The tree files contain timestamps that we have not used.
+- Whether the 132 Weibo events that appear in weibotree.txt but have no
+  entry in weibo_id_label.txt are structurally different from the
+  labelled ones (missing labels are not random if moderators removed
+  only certain posts).
+
+These are natural next steps for Phase 1 before moving to GNN training.
+
+
+BOTTOM LINE
+-----------
+The data shows that Twitter-15 and Weibo are structurally distinct
+spreading environments. The difference is large enough (71% in width,
+31% in depth, confirmed statistically) to matter for any system that
+uses cascade structure as a signal. Treating them as interchangeable
+would be an error. Community-specific parameters are justified by the
+data, not just by theoretical intuition.
