@@ -83,7 +83,7 @@ def _load_dataset(split: str) -> TwitterRumourDataset:
         # Build a lightweight merged wrapper
         combined = TwitterRumourDataset.__new__(TwitterRumourDataset)
         combined.split = "both"
-        combined._data_list = ds15._data_list + ds16._data_list
+        combined._data = ds15._data + ds16._data
         return combined
     return TwitterRumourDataset(split)
 

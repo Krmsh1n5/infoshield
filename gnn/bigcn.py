@@ -1,17 +1,19 @@
 """
-BiGCN — Bi-directional Graph Convolutional Network for rumour classification.
+BiGCN: Bi-directional Graph Convolutional Network for rumour classification.
 
-Implements Bian et al. (2020) "Rumor Detection on Social Media with
-Bi-Directional Graph Convolutional Networks", AAAI 2020.
+This module expects each PyG Data object to contain:
+    x             : FloatTensor [num_nodes, node_feature_dim]
+    edge_index    : LongTensor  [2, num_td_edges]
+    edge_index_bu : LongTensor  [2, num_bu_edges]
+    root_mask     : BoolTensor  [num_nodes], exactly one True per graph
+    y             : LongTensor  scalar label, optional for inference
 
-Two parallel GCN branches (top-down and bottom-up) with root-feature
-enhancement after each layer. The root enhancement is critical for
-benchmark-level accuracy — it lets the model retain the source claim's
-context as the message propagates through the graph.
+The dataset builds node features as:
+    [RoBERTa root CLS embedding broadcast to all nodes | 4 structural features]
 
-Input feature dim: 772 = 768 (RoBERTa CLS, broadcast from root) + 4 (structural).
-See dataset.py BROADCAST DESIGN comment for why broadcast is correct.
+For the current project config, node_feature_dim is 772.
 """
+
 from __future__ import annotations
 
 import torch
@@ -23,15 +25,41 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 from config import cfg
 
 
-class GCNBranch(nn.Module):
-    """One direction of BiGCN (TD or BU) with root-feature enhancement."""
+STRUCT_FEATURE_DIM = 4
 
-    def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, dropout: float):
+
+def _node_feature_dim_from_cfg() -> int:
+    """
+    Resolve the model input feature dimension.
+
+    Some project versions used cfg.bigcn.text_embed_dim to mean the raw RoBERTa
+    dimension, 768. The current config uses it as the final node feature size,
+    772. This helper supports both conventions.
+    """
+    dim = int(cfg.bigcn.text_embed_dim)
+
+    # Backward-compatible case: config stores only RoBERTa-base hidden size.
+    if dim == 768:
+        return dim + STRUCT_FEATURE_DIM
+
+    # Current project case: config already stores full node feature size.
+    return dim
+
+
+class GCNBranch(nn.Module):
+    """One directional GCN branch with root-feature enhancement."""
+
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        dropout: float,
+    ) -> None:
         super().__init__()
         self.conv1 = GCNConv(in_dim, hidden_dim)
-        # After concat with broadcast root features, input becomes hidden_dim + in_dim
         self.conv2 = GCNConv(hidden_dim + in_dim, out_dim)
-        self.dropout = dropout
+        self.dropout = float(dropout)
 
     def forward(
         self,
@@ -40,162 +68,149 @@ class GCNBranch(nn.Module):
         batch: torch.Tensor,
         root_mask: torch.Tensor,
     ) -> torch.Tensor:
-        # Layer 1
-        h1 = F.relu(self.conv1(x, edge_index))
-        h1 = F.dropout(h1, p=self.dropout, training=self.training)
+        """
+        Return one graph-level vector per graph in the batch.
 
-        # Root enhancement: broadcast each graph's root features to all its nodes
-        root_x = x[root_mask]              # (B, in_dim) — one root per graph
-        root_expanded = root_x[batch]      # (N, in_dim) — broadcast back to nodes
-        h1_aug = torch.cat([h1, root_expanded], dim=1)
+        Root enhancement:
+            after the first GCN layer, the original root feature vector for
+            each graph is broadcast back to every node in that graph and
+            concatenated before the second GCN layer.
+        """
+        h = F.relu(self.conv1(x, edge_index))
+        h = F.dropout(h, p=self.dropout, training=self.training)
 
-        # Layer 2
-        h2 = F.relu(self.conv2(h1_aug, edge_index))
-        h2 = F.dropout(h2, p=self.dropout, training=self.training)
+        root_x = x[root_mask]
+        num_graphs = int(batch.max().item()) + 1 if batch.numel() else 1
+        if root_x.size(0) != num_graphs:
+            raise ValueError(
+                "root_mask must contain exactly one root node per graph. "
+                f"Got {root_x.size(0)} roots for {num_graphs} graphs."
+            )
 
-        # Mean pool to graph-level representation
-        return global_mean_pool(h2, batch)  # (B, out_dim)
+        root_expanded = root_x[batch]
+        h = torch.cat([h, root_expanded], dim=-1)
+
+        h = F.relu(self.conv2(h, edge_index))
+        h = F.dropout(h, p=self.dropout, training=self.training)
+
+        return global_mean_pool(h, batch)
 
 
 class BiGCN(nn.Module):
-    """Top-down + bottom-up GCN branches → concat → classifier head."""
+    """Top-down and bottom-up GCN branches followed by a classifier head."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-        # +4 for structural node features (depth, in_degree, out_degree, is_root)
-        # appended in dataset._build_pyg_graph — actual input dim is 772
-        in_dim     = cfg.bigcn.text_embed_dim + 4    # 768 + 4 = 772
-        hidden_dim = cfg.bigcn.gcn_hidden_dim    # 256
-        out_dim    = cfg.bigcn.gcn_output_dim    # 128
-        num_layers = cfg.bigcn.gcn_num_layers    # 2
-        dropout    = cfg.bigcn.dropout           # 0.3
-        num_classes= cfg.bigcn.num_classes       # 4
+        in_dim = _node_feature_dim_from_cfg()
+        hidden_dim = int(cfg.bigcn.gcn_hidden_dim)
+        out_dim = int(cfg.bigcn.gcn_output_dim)
+        dropout = float(cfg.bigcn.dropout)
+        num_classes = int(cfg.bigcn.num_classes)
 
-        self.td_branch = GCNBranch(in_dim, hidden, out_dim, dropout)
-        self.bu_branch = GCNBranch(in_dim, hidden, out_dim, dropout)
+        if int(cfg.bigcn.gcn_num_layers) != 2:
+            raise ValueError(
+                "This BiGCN implementation uses exactly 2 GCN layers per branch. "
+                f"cfg.bigcn.gcn_num_layers={cfg.bigcn.gcn_num_layers} is not supported."
+            )
+
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+        self.td_branch = GCNBranch(in_dim, hidden_dim, out_dim, dropout)
+        self.bu_branch = GCNBranch(in_dim, hidden_dim, out_dim, dropout)
 
         self.classifier = nn.Sequential(
             nn.Linear(out_dim * 2, out_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(out_dim, n_classes),
+            nn.Linear(out_dim, num_classes),
         )
 
     def forward(self, data: Data) -> torch.Tensor:
-        x            = data.x                   # (N, 768)
-        edge_td      = data.edge_index           # (2, E_td)
-        edge_bu      = data.edge_index_bu        # (2, E_bu)
-        batch        = getattr(data, "batch", None)
+        x = data.x
+        if x.dim() != 2:
+            raise ValueError(f"data.x must be rank-2 [N, F], got shape {tuple(x.shape)}")
 
-        # Handle single-graph inference (no batch vector)
+        if x.size(-1) != self.in_dim:
+            raise ValueError(
+                f"BiGCN expected node feature dim {self.in_dim}, "
+                f"but data.x has dim {x.size(-1)}. "
+                "Check cfg.bigcn.text_embed_dim and dataset node features."
+            )
+
+        edge_td = data.edge_index
+        edge_bu = getattr(data, "edge_index_bu", None)
+        if edge_bu is None:
+            edge_bu = edge_td.flip(0)
+
+        batch = getattr(data, "batch", None)
         if batch is None:
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+        else:
+            batch = batch.to(x.device)
 
-        # --- GCN branches ---
-        z_td = self.td_branch(x, edge_td)       # (N, 128)
-        z_bu = self.bu_branch(x, edge_bu)       # (N, 128)
+        root_mask = getattr(data, "root_mask", None)
+        if root_mask is None:
+            root_mask = self._first_node_root_mask(batch, x.size(0))
+        else:
+            root_mask = root_mask.to(device=x.device, dtype=torch.bool)
 
-        # --- Mean pooling per graph ---
-                # --- Root-aware graph pooling ---
-        z_td_mean = self._mean_pool(z_td, batch)        # (B, 128)
-        z_bu_mean = self._mean_pool(z_bu, batch)        # (B, 128)
+        z_td = self.td_branch(x, edge_td, batch, root_mask)
+        z_bu = self.bu_branch(x, edge_bu, batch, root_mask)
 
-        z_td_max = self._max_pool(z_td, batch)          # (B, 128)
-        z_bu_max = self._max_pool(z_bu, batch)          # (B, 128)
-
-        root_indices = self._root_indices(batch)        # (B,)
-        z_td_root = z_td[root_indices]                  # (B, 128)
-        z_bu_root = z_bu[root_indices]                  # (B, 128)
-
-        # --- Concatenate and classify ---
-        z = torch.cat(
-            [z_td_mean, z_td_max, z_td_root, z_bu_mean, z_bu_max, z_bu_root],
-            dim=-1,
-        )                                                # (B, 768)
-
-        logits = self.classifier(z)                     # (B, num_classes)
-        # print("DEBUG z shape before classifier:", z.shape)
-        return logits
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+        z = torch.cat([z_td, z_bu], dim=-1)
+        return self.classifier(z)
 
     @staticmethod
-    def _mean_pool(x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
-        """Segment mean over nodes within each graph in the batch."""
-        num_graphs = int(batch.max().item()) + 1
-        out = torch.zeros(num_graphs, x.size(-1), device=x.device, dtype=x.dtype)
-        count = torch.zeros(num_graphs, 1, device=x.device, dtype=x.dtype)
-        out.scatter_add_(0, batch.unsqueeze(-1).expand_as(x), x)
-        count.scatter_add_(0, batch.unsqueeze(-1),
-                           torch.ones(batch.size(0), 1, device=x.device))
-        count = count.clamp(min=1)
-        return out / count
-    
-    @staticmethod
-    def _max_pool(x: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
-        """Segment max over nodes within each graph in the batch."""
-        num_graphs = int(batch.max().item()) + 1
-        out = torch.full(
-            (num_graphs, x.size(-1)),
-            fill_value=-float("inf"),
-            device=x.device,
-            dtype=x.dtype,
-        )
+    def _first_node_root_mask(batch: torch.Tensor, num_nodes: int) -> torch.Tensor:
+        """
+        Fallback root mask: first node of each graph in a PyG batch.
+
+        The dataset explicitly supplies root_mask. This fallback keeps single-graph
+        smoke tests and older cached Data objects usable.
+        """
+        root_mask = torch.zeros(num_nodes, dtype=torch.bool, device=batch.device)
+        num_graphs = int(batch.max().item()) + 1 if batch.numel() else 1
 
         for graph_id in range(num_graphs):
-            mask = batch == graph_id
-            if mask.any():
-                out[graph_id] = x[mask].max(dim=0).values
-            else:
-                out[graph_id] = 0.0
+            idx = torch.where(batch == graph_id)[0]
+            if idx.numel() > 0:
+                root_mask[idx[0]] = True
 
-        return out
+        return root_mask
 
-
-    @staticmethod
-    def _root_indices(batch: torch.Tensor) -> torch.Tensor:
-        """
-        Return the first node index for each graph in the batch.
-
-        This works because each Data object is built with the root tweet as node 0,
-        and PyG preserves per-graph node order inside a batch.
-        """
-        num_graphs = int(batch.max().item()) + 1
-        roots = []
-
-        for graph_id in range(num_graphs):
-            roots.append(torch.where(batch == graph_id)[0][0])
-
-        return torch.stack(roots)
-
-
-# ---------------------------------------------------------------------------
-# Convenience: count trainable parameters
-# ---------------------------------------------------------------------------
 
 def count_parameters(model: nn.Module) -> int:
+    """Count trainable parameters."""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 if __name__ == "__main__":
-    # Quick smoke test (single graph, no labels needed)
-    import torch
     from torch_geometric.data import Data
 
-    N, E = 50, 60
-    x         = torch.randn(N, cfg.bigcn.text_embed_dim + 4)  # 772
-    src       = torch.randint(0, N, (E,))
-    dst       = torch.randint(0, N, (E,))
-    ei_td     = torch.stack([src, dst])
-    ei_bu     = torch.stack([dst, src])
+    num_nodes, num_edges = 50, 60
+    x = torch.randn(num_nodes, _node_feature_dim_from_cfg())
 
-    dummy = Data(x=x, edge_index=ei_td, edge_index_bu=ei_bu,
-                 y=torch.tensor(0))
+    src = torch.randint(0, num_nodes, (num_edges,))
+    dst = torch.randint(0, num_nodes, (num_edges,))
+    edge_td = torch.stack([src, dst], dim=0)
+    edge_bu = edge_td.flip(0)
 
-    model  = BiGCN()
+    root_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    root_mask[0] = True
+
+    dummy = Data(
+        x=x,
+        edge_index=edge_td,
+        edge_index_bu=edge_bu,
+        root_mask=root_mask,
+        y=torch.tensor(0, dtype=torch.long),
+        tweet_id="dummy",
+    )
+
+    model = BiGCN()
     logits = model(dummy)
-    print(f"BiGCN logits shape : {logits.shape}")          # (1, 4)
+
+    print(f"BiGCN logits shape : {tuple(logits.shape)}")
     print(f"Trainable params   : {count_parameters(model):,}")
