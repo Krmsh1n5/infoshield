@@ -224,12 +224,6 @@ python evaluation/compute_auc_twitter15.py
 
 ---
 
-## Citation
-
-If you use InfoShield in your research, please cite this repository.
-
----
-
 ## License
 
 This project is for academic research purposes.
