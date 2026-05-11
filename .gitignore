@@ -6,3 +6,4 @@ data\processed\graphs\twitter16\all_graphs.pt__pycache__
 data/processed/graphs/
 data/processed/graphs/
 data/raw/weibo/weibotree.txt
+__pycache__/

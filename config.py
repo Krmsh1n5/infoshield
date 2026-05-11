@@ -29,6 +29,7 @@ class Paths:
     # Convenience sub-path shortcuts for tree files
     twitter15_trees:    Path = ROOT / "data" / "raw" / "twitter15" / "tree"
     twitter16_trees:    Path = ROOT / "data" / "raw" / "twitter16" / "tree"
+    weibo:              Path = ROOT / "data" / "raw" / "weibo"
 
     # Processed — PyG Data objects, fitted SBM matrices, etc.
     data_processed:     Path = ROOT / "data" / "processed"
@@ -258,24 +259,11 @@ class WeiboConfig:
 
     Labels: rumours / non-rumours  (mapped to false / true)
     """
-    label_map: dict = field(default_factory=lambda: {
-        "rumours":     0,
-        "rumour":      0,
-        "non-rumours": 1,
-        "non-rumour":  1,
-        "non-rumor":   1,
-    })
-    binary_label_map: dict = field(default_factory=lambda: {
-        0: "false",
-        1: "true",
-    })
-
-    tree_dir:      str = "tree"
-    label_file:    str = "label.txt"
-    root_sentinel: str = "ROOT"
-
+    tree_file:  str = "weibotree.txt"       # single flat file for ALL events
+    label_file: str = "weibo_id_label.txt"  # space-separated: event_id label
     min_tree_size: int = 3
     max_tree_size: int = 2000
+
 
 
 @dataclass
@@ -351,6 +339,7 @@ class Config:
     wico:       WICOConfig        = field(default_factory=WICOConfig)
     twitter15:  Twitter15Config   = field(default_factory=Twitter15Config)
     twitter16:  Twitter16Config   = field(default_factory=Twitter16Config)
+    weibo:      WeiboConfig       = field(default_factory=WeiboConfig)
     bigcn:      BiGCNConfig       = field(default_factory=BiGCNConfig)
     sbm:        SBMConfig         = field(default_factory=SBMConfig)
     lp:         LPOptimizerConfig = field(default_factory=LPOptimizerConfig)
@@ -363,6 +352,7 @@ class Config:
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
         random.seed(self.seed)
+
 
 
 # Singleton — import this in all modules
@@ -380,4 +370,5 @@ if __name__ == "__main__":
     print(f"LP lambda    : {cfg.lp.lambda_weight}")
     print(f"SBM parts    : {cfg.sbm.num_partitions}")
     print()
+    
     cfg.paths.make_all()
