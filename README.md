@@ -108,6 +108,10 @@ infoshield/
 ## Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/Krmsh1n5/infoshield.git
+cd infoshield
+
 # Python 3.10+ recommended
 pip install -r requirements.txt
 ```
