@@ -4,7 +4,7 @@
 
 **Authors:** Azerin Salahova · Dmitriy Kuramshin
 **Institution:** UFAZ — French-Azerbaijani University
-**Project type:** Student-led research project
+**Project type:** Student-led project
 
 ---
 
@@ -529,9 +529,9 @@ If you use this work, please cite:
 @misc{salahova2024infoguard,
   author    = {Salahova, Azerin and Kuramshin, Dmitriy},
   title     = {InfoGuard: Network-Level Misinformation Suppression with a BiGCN Input Filter},
-  year      = {2024},
+  year      = {2026},
   institution = {UFAZ — French-Azerbaijani University},
-  note      = {Student-led research project},
+  note      = {Student-led project},
   url       = {https://github.com/Krmsh1n5/infoshield}
 }
 ```
